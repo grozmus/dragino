@@ -56,7 +56,7 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
     2. check the serial port is receiving GPS data with 'cat /dev/serialx' where x is your port number.
 4. Install the required packages `sudo apt install device-tree-compiler git python3-crypto python3-nmea2 python3-rpi.gpio python3-serial python3-spidev python3-configobj`
 5. Download the git repo `git clone https://github.com/computenodes/LoRaWAN.git`
-    1. make a copy of dragingo.ini.default 'cp dragino.ini.default dragino.ini'
+    1. make a copy of dragingo.ini.default `cp dragino.ini.default dragino.ini`
     2. make sure your dragino.ini is set to use the serial port from step 3
 6. Enable additional CS lines (See section below for explanation)
     1. Change into the overlay directory `cd dragino/overlay`
@@ -65,7 +65,7 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
     4. Enable the overlay at next reboot `echo "dtoverlay=spi-gpio-cs" | sudo tee -a /boot/config.txt`
     5. Reboot the Pi `sudo reboot`
     6. Check that the new cs lines are enabled `ls /dev/spidev0.*` should output `/dev/spidev0.0  /dev/spidev0.1  /dev/spidev0.2`.  In which case the required SPI CS line now exists
-7. Create a new device in The Things Network console and copy the details into the config file dragino.ini
+7. Create a new device in The Things Network console and copy the details into the config file `dragino.ini`
 8. Run the test programm `./test.py` and the device should transmit on the things network using OTAA authentication
 9. run './test_downlink.py' to check downlink messages are received (after scheduling one in the TTN console)
 
