@@ -41,7 +41,7 @@ def downlinkCallback(payload,mtype):
         print("Received CONF_DATA_DOWN payload:",payload)
 
 
-D = Dragino("dragino.ini", logging_level=logLevel)
+D = Dragino("config.toml", logging_level=logLevel)
 
 D.setDownlinkCallback(downlinkCallback)
 

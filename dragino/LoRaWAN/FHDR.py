@@ -18,12 +18,23 @@ class FHDR:
     
     def create(self, mtype, args):
         self.devaddr = [0x00, 0x00, 0x00, 0x00]
-        self.fctrl = 0x00
+        
+        # for downlinks fctrl=[ADR:7,RFU:6,ACK:5,FPending:4,FOptsLen:3-0]
+        # for uplinks   fctrl=[ADR:7,ADRACKREQ:6,ACK:5,CLASS_B:4,FOptslen:3-0]
+        
+        self.fctrl = 0x00 
         if 'fcnt' in args:
             self.fcnt = args['fcnt'].to_bytes(2, byteorder='little')
         else:
             self.fcnt = [0x00, 0x00]
-        self.fopts = []
+        
+        # BNN addition to add any fopts for MAC replies/commands
+        if 'fopts' in args:
+            self.fopts = args['fopts'] # should this be little endian?
+            self.fctrl=self.fctrl | (len(self.fopts) & 0x0F)
+        else:
+            self.fopts = []
+            
         if mtype == MHDR.UNCONF_DATA_UP or mtype == MHDR.UNCONF_DATA_DOWN or\
                 mtype == MHDR.CONF_DATA_UP or mtype == MHDR.CONF_DATA_DOWN:
             self.devaddr = list(reversed(args['devaddr']))
@@ -63,3 +74,5 @@ class FHDR:
 
     def set_fopts(self, fopts):
         self.fopts = fopts
+        # set the FOptsLen 
+        self.fctrl=self.fctrl | (len(fopts) & 0x0f) 

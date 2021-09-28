@@ -1,0 +1,126 @@
+"""
+GPShandler.py
+
+Code to manage the Dragino GPS device
+
+provides non-blocking access using GPSD
+
+"""
+import logging
+from threading import Thread
+try:
+    from gps3 import agps3
+except:
+    import gpsd
+
+import json
+from time import time
+from datetime import datetime,timedelta
+
+DEFAULT_LOG_LEVEL=logging.INFO
+
+
+class GPS:
+    def __init__(self, logging_level=DEFAULT_LOG_LEVEL,threaded=True,threadDelay=0.5):
+
+        self.logger = logging.getLogger("GPS")
+        self.logger.setLevel(logging_level)
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
+
+
+        self.isThreaded=threaded
+        self.threadLoopDelay=threadDelay
+
+        self.lat=None
+        self.lon=None
+        self.timestamp=None
+        self.lastGpsReading=None
+
+
+        # gpsd settings - make sure gpsd is installed and running
+        self.gpsd_socket = agps3.GPSDSocket()
+        self.gpsd_socket.connect('127.0.0.1', 2947)
+        self.gpsd_socket.watch(gpsd_protocol='json', enable=True)
+        self.data_stream = agps3.DataStream()
+
+        if self.isThreaded:
+            self.gpsThread=Thread(target=self._updater)
+            self.gpsThread.start()
+
+    def __del__(self):
+        if self.isThreaded:
+            self.gpsThread.stop()
+            self.gpsThread.join()   # wait for the thread to finish
+
+    def get_gps(self):
+        """
+            return the cached GPS values
+
+            update_gps() should be called frequently to keep
+            these values updated
+
+        """
+        self.logger.info("get_gps(): lat %s, lon %s, timestamp: %s", self.lat, self.lon, self.timeStamp)
+        return self.lat, self.lon, self.timeStamp, self.lastGpsReading
+
+    def get_corrected_timestamp(self):
+        """
+            return the timestamp for Now
+
+            The system time may have drifted since the last valid GPS timestamp.
+
+            The current timestamp will be the last GPS timestamp plus the elapsed time
+            since the reading was obtained (usually within a few seconds if the GPS
+            has achieved a lock)
+
+        """
+
+        return datetime.fromtimestamp(self.timestamp)+timedelta(time()-self.lastGpsReading)
+
+    def delay(self,Delay):
+        """
+        delay which does not sleep the thread
+
+        Param Delay float (seconds)
+        """
+        start=time()
+        while time()<(start+Delay):
+            pass
+
+
+    def _updater(self):
+        """
+        GPS updater thread, samples GPS every 0.5 seconds
+        """
+        while True:
+            self.update_gps()
+            self.delay(self.threadLoopDelay)
+
+    def update_gps(self):
+        """
+            Get the GPS position from the dragino,
+            using gpsd
+
+            updates the cached GPS values when a TPV message is seen
+            this could mean the cached time is out of sync with reality
+            so we also save a timestamp when the reading was valid
+
+            Caller can compute actual time using the GPS timestamp and the
+            time the reading was cached.
+
+        """
+        try:
+            self.logger.info("update GPS")
+            new_data = self.gpsd_socket.next()
+            if new_data is not None:
+                data = json.loads(new_data)
+                self.logger.info("GPS new_data class %s", data["class"])
+                if data["class"] == "TPV":
+                    self.lat = data["lat"]
+                    self.lon = data["lon"]
+                    self.timeStamp = data["time"]
+                    self.lastGpsReading = time()
+            else:
+                self.logger.info("No new gps data")
+        except Exception as e:
+            self.logger.warning("update_gps() ignoring exception %s", e)

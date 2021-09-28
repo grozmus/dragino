@@ -11,6 +11,7 @@ from .DataPayload import DataPayload
 class MacPayload:
 
     def read(self, mtype, mac_payload):
+        #print(f"MAC_payload {mac_payload}")
         if len(mac_payload) < 1:
             raise MalformedPacketException("Invalid mac payload")
 
@@ -32,7 +33,14 @@ class MacPayload:
     def create(self, mtype, key, args):
         self.fhdr = FHDR()
         self.fhdr.create(mtype, args)
-        self.fport = 0x01
+        
+        # added ability to specify the fport normally 1..254
+        # 0 reserved for MAC only commands, 255 is a broadcast
+        if 'fport' in args:
+            self.fport = args['fport']
+        else:
+            self.fport=1
+            
         self.frm_payload = None
         if mtype == MHDR.JOIN_REQUEST:
             self.frm_payload = JoinRequestPayload()

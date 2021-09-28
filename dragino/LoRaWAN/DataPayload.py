@@ -60,9 +60,10 @@ class DataPayload:
         s = cipher.encrypt(bytes(a))
 
         padded_payload = []
+        padding=[0x00] * 16
         for i in range(k):
             idx = (i + 1) * 16
-            padded_payload += (self.payload[idx - 16:idx] + ([0x00] * 16))[:16]
+            padded_payload += (self.payload[idx - 16:idx] + padding)[:16]
 
         payload = []
         for i in range(len(self.payload)):
@@ -88,9 +89,10 @@ class DataPayload:
         s = cipher.encrypt(bytes(a))
 
         padded_payload = []
+        padding=[0x00]*16
         for i in range(k):
             idx = (i + 1) * 16
-            padded_payload += (data[idx - 16:idx] + ([0x00] * 16))[:16]
+            padded_payload += (data[idx - 16:idx] + padding)[:16]
 
         payload = []
         for i in range(len(data)):

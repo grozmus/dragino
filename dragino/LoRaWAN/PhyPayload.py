@@ -14,13 +14,16 @@ class PhyPayload:
 
     def read(self, packet):
         if len(packet) < 12:
-            raise MalformedPacketException("Invalid lorawan packet");
-
+            raise MalformedPacketException("Invalid lorawan packet")
+        
         self.mhdr = MHDR(packet[0])
-        self.set_direction()
-        self.mac_payload = MacPayload()
-        self.mac_payload.read(self.get_mhdr().get_mtype(), packet[1:-4])
         self.mic = packet[-4:]
+        self.set_direction()
+        try:
+            self.mac_payload = MacPayload()
+            self.mac_payload.read(self.get_mhdr().get_mtype(), packet[1:-4])
+        except Exception as e:
+            raise MalformedPacketException(f"cannot read packet {e}");
 
     def create(self, mhdr, args):
         self.mhdr = MHDR(mhdr)
@@ -83,7 +86,13 @@ class PhyPayload:
             return self.mac_payload.fhdr.get_devaddr()
 
     def get_payload(self):
-        return self.mac_payload.frm_payload.decrypt_payload(self.appkey, self.get_direction(), self.mic)
+        try:
+            
+            return self.mac_payload.frm_payload.decrypt_payload(self.appkey, self.get_direction(), self.mic)
+
+        except AttributeError:
+            #print("mac_payload does not have a frm_payload")
+            return None
 
     def derive_nwskey(self, devnonce):
         return self.mac_payload.frm_payload.derive_nwskey(self.appkey, devnonce)

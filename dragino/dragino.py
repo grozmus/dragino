@@ -16,83 +16,120 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-from random import randrange
-from datetime import datetime, timedelta
+
 import logging
-import os.path
-from configobj import ConfigObj
-from serial import Serial
-import pynmea2
+
+from random import randrange
 from .SX127x.LoRa import LoRa, MODE
 from .SX127x.board_config import BOARD
+from .SX127x.constants import BW
 from .LoRaWAN import new as lorawan_msg
 from .LoRaWAN import MalformedPacketException
 from .LoRaWAN.MHDR import MHDR
-from .FrequncyPlan import LORA_FREQS, JOIN_FREQS
+    
+from time import time
+from .MAChandler import MAC_commands
+from .Config import TomlConfig
+from .Strings import *
+import threading
 
 
-DEFAULT_LOG_LEVEL = logging.WARN #Change after finishing development
-DEFAULT_RETRIES = 3 # How many attempts to send the message
+# Dragino.py is called from classes in the
+# parent directory. It helps to add that to the system path
+import os
+import sys
+currentDir=os.path.dirname(os.path.realpath(__file__))
+parentDir=os.path.dirname(currentDir)
+sys.path.append(parentDir)
 
-AUTH_ABP = "ABP"
-AUTH_OTAA = "OTAA"
+#################################
+DEFAULT_LOG_LEVEL = logging.DEBUG 	# Change after finishing development
+DEFAULT_RETRIES = 3 				# How many attempts to send the message
+
+
+class radioSettings:
+    # used by configureRadio
+    JOIN=0
+    SEND=1
+    RX1=2
+    RX2=3
+
+class DraginoError(Exception):
+    """
+        Error class for dragino class
+    """
+
 
 class Dragino(LoRa):
     """
         Class to provide an interface to the dragino LoRa/GPS HAT
     """
     def __init__(
-            self, config_filename, freqs=LORA_FREQS,
-            logging_level=DEFAULT_LOG_LEVEL,
-            lora_retries=DEFAULT_RETRIES):
+            self, config_filename,
+            logging_level=DEFAULT_LOG_LEVEL
+            ):
+
+        self.logger = logging.getLogger("Dragino")
+        self.logger.setLevel(logging_level)
+        
+        self.logger.info("__init__ starting")
+        
         """
             Create the class to interface with the board
         """
-        self.logger = logging.getLogger("Dragino")
-        self.logger.setLevel(logging_level)
-        logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
-        BOARD.setup()
-        super(Dragino, self).__init__(logging_level < logging.INFO)
-        self.devnonce = [randrange(256), randrange(256)] #random nonce
-        self.logger.debug("Nonce = %s", self.devnonce)
-        self.freqs = freqs
-        #Set all auth method tockens to None as not sure what auth method we'll use
-        self.device_addr = None
-        self.network_key = None
-        self.apps_key = None
-        self.appkey = None
-        self.appeui = None
-        self.deveui = None
-        self.config = DraginoConfig(config_filename, logging_level)
-        self.lora_retries = lora_retries
-        self._read_frame_count()
-        self.set_mode(MODE.SLEEP)
-        self.set_dio_mapping([1, 0, 0, 0, 0, 0])
-        self.set_pa_config(pa_select=1)
-        self.set_spreading_factor(self.config.spreading_factor)
-        self.set_pa_config(
-            max_power=self.config.max_power,
-            output_power=self.config.output_power)
-        self.set_sync_word(self.config.sync_word)
-        self.set_rx_crc(self.config.rx_crc)
-        if self.config.auth == AUTH_ABP:
-            self.device_addr = self.config.devaddr
-            self.network_key = self.config.nwskey
-            self.apps_key = self.config.appskey
-        elif self.config.auth == AUTH_OTAA:
-            self.appeui = self.config.appeui
-            self.deveui = self.config.deveui
-            self.appkey = self.config.appkey
-        assert self.get_agc_auto_on() == 1
-        self.gps_serial = Serial(
-            self.config.gps_serial_port,
-            self.config.gps_baud_rate,
-            timeout=self.config.gps_serial_timeout)
-        self.gps_serial.flush()
 
-        # for downlink messages
+        BOARD.setup()
+        super(Dragino, self).__init__() # LoRa init
+
+        self.TC=TomlConfig(config_filename)                 # load user config
+        self.config=self.TC.getConfig()                     # get the config dictionary
+        self.MAC=MAC_commands(self.config,logging_level)    # loads cached MAC info (if any) otherwise config values
+
+
+        try:
+            """
+            if config file contains strings where numbers are expected we get and error:-
+            
+            "...unsupported operand type(s) for <<: 'str' and 'int'"
+            
+            """
+
+            self.set_mode(MODE.SLEEP)
+            self.set_dio_mapping([1, 0, 0, 0, 0, 0]) # listening
+            
+            # temporary values will be changed by JOIN when frequency is changed
+            #self.set_freq(868.1)
+            #self.set_spreading_factor(self.config[TTN][SPREADING_FACTOR])
+            #self.set_bw(BW.BW125)
+            
+            #self.set_pa_config(
+            #    pa_select=1,
+            #    max_power=self.config[TTN][MAX_POWER],
+            #    output_power=self.config[TTN][OUTPUT_POWER]
+            #    )
+                
+            self.set_sync_word(self.config[TTN][SYNC_WORD])
+            self.set_rx_crc(self.config[TTN][RX_CRC])
+            
+            self.joinRetries=self.config[TTN][JOIN_RETRIES]
+            
+            self.frequency_plan=self.config[TTN][FREQUENCY_PLAN]
+            
+        except Exception as e:
+            self.logger.error(f"error initialising radio config {e}. Check config values are not strings")
+            
+        assert self.get_agc_auto_on() == 1
+
+        # for downlink DATA messages
         self.downlinkCallback=None
+
+        # status
+        self.transmitting=False
+        self.validMsgRecvd=False     # used to detect valid msg receive in RX1
+        self.txStart=None          # used to compute last airTime
+        self.txEnd=None
+        
+        self.logger.info("__init__ done")
 
     def setDownlinkCallback(self,func=None):
         """
@@ -113,364 +150,518 @@ class Dragino(LoRa):
             self.logger.info("downlinkCallback is not callable")
 
 
-    def _choose_freq(self, join=False):
-        if join:
-            available = JOIN_FREQS
-        else:
-            available = LORA_FREQS
-        freq = available[randrange(len(available))]#Pick a random frequency
+    def configureRadio(self,cfg):
+        """
+        change radio settings
+        
+        called whenever there's a change of radio settings
+        
+        :param cfg: (see radioSettings class)
+        """
+        freq,sf,bw=0,0,0
+        
+        if cfg==radioSettings.JOIN:
+            freq,sf,bw=self.MAC.getJoinSettings()
+        elif cfg==radioSettings.SEND:
+            freq,sf,bw=self.MAC.getSendSettings()
+        elif cfg==radioSettings.RX1:
+            freq,sf,bw=self.MAC.getRX1Settings()
+        elif cfg==radioSettings.RX2:
+            freq,sf,bw=self.MAC.getRX2Settings()
+            
+        self.logger.info(f" freq={freq} sf={sf} bw={bw}")
+        
+        self.set_pa_config(
+            pa_select=1,
+            max_power=self.config[TTN][MAX_POWER],
+            output_power=self.config[TTN][OUTPUT_POWER]
+            )
+   
+        # now configure the radio
         self.set_mode(MODE.SLEEP)
         self.set_freq(freq)
-        self.logger.info("Frequency = %s", freq)
+        self.set_spreading_factor(sf)
+        self.set_bw(bw)
+        self.set_mode(MODE.RXCONT)
+            
 
+    def switchToRX2(self):
+        """
+            called by threading timer elapsing after rx1_delay+1 following
+            a transmission
 
-    def _read_frame_count(self):
+            device remains listening in rx2 until the next transmission
         """
-            Read the frame count from file - if no file present assume it's 1
-        """
-        self.frame_count = self.config.get_fcount()
+        self.logger.info("switching to RX2")
+        
+        # set by on_rx_done() when a valid message
+        # has been received during RX1 or RX2
+        if self.validMsgRecvd:
+            return
+            
+        self.configureRadio(radioSettings.RX2)
+        
 
-    def _save_frame_count(self):
+    def process_JOIN_ACCEPT(self,rawPayload):
         """
-            Saves the frame count out to file so that check in ttn can be enabled
-            If the file doesn't exist then create it
+        dwnlink is a join accept message
         """
-        self.config.save_fcount(self.frame_count)
+        self.logger.debug("Trying to process JOIN_ACCEPT")
+        try:
+            appkey=self.MAC.getAppKey()
+            lorawan = lorawan_msg([], appkey)
+            lorawan.read(rawPayload)
+            decodedPayload=lorawan.get_payload()
+            lorawan.valid_mic() # throws an exception if MIC not valid
+                 
+            self.logger.debug(f"decoded JOIN_ACCEPT payload {decodedPayload}")
+                
+            self.MAC.setLastSNR(self.get_pkt_snr_value()) # used for last status req
+
+        except Exception as e:
+            # if decoding failed it probably isn't a valid lorawan packet
+            self.logger.exception(f"Invalid JOIN_ACCEPT {e}")
+            return
+                
+        # if we receive a valid message in RX1 we don't need
+        # to switch to RX2
+        self.validMsgRecvd=True
+            
+        # values from the JOIN_ACCEPT payload
+        # spec says payload is
+        # join_nonce:3,netId:3;devaddr:4,DL_settings:1,RX_delay:1,cfList:16 (optional)
+               
+        frm_payload=lorawan.get_mac_payload().get_frm_payload()
+            
+            
+        self.MAC.setRX1Delay(frm_payload.get_rxdelay())
+        self.MAC.setDLsettings(frm_payload.get_dlsettings())
+
+            
+        # cflist is optional.
+        # it defines the 5 additional lora frequencies following the
+        # 3 standard join frequencies. 
+        # I found this delivers the same frequencies in the config toml
+        # lora_freqs[3..7] which came from the TTN frequency plan
+        # Un-comment the following lines
+        # to use
+        # cflist=frm_payload.get_cflist())
+        # self.MAC.handleCFlist(cflist)
+            
+        devaddr=lorawan.get_devaddr()
+        newskey=lorawan.derive_nwskey(self.devnonce)
+        appskey=lorawan.derive_appskey(self.devnonce)
+                
+
+        self.MAC.setDevAddr(devaddr)
+        self.MAC.setNewSKey(newskey)
+        self.MAC.setAppSKey(appskey)
+
+        self.logger.debug(f"devaddr: {devaddr}")
+        self.logger.debug(f"newskey: {newskey}")
+        self.logger.debug(f"appskey: {appskey}")
+                
+        self.MAC.setFCntUp(1)
+                
+        # cache changed values
+        self.MAC.saveCache()
+            
+        # finally process any MAC commands (if any)
+        #self.MAC.handleCommand(lorawan.get_mac_payload())
+
+    def process_DATA_DOWN(self,rawPayload):
+        """
+        downlink messages can be unconfirmed or confirmed
+        
+        Optional parts enclosed in [] byte count enclosed in ()
+        
+        rawPayload=MHDR(1),DEVADDR(4),FCTL(1),FCNT(2),[FOPTS(1..N)],[FPORT(1)],[FRM_PAYLOAD(..N)],MIC(4)
+        
+        To detect if optional parts exist we need to calc the length
+        FOpts & 0x0F tells us the length of any FOPTS
+        
+        """
+        try:
+            self.logger.debug("Downlink data received")
+       
+            mtype=rawPayload[0] & 0xF0
+            
+            # check if just MAC commands
+            rawPayloadLen=len(rawPayload)
+        
+            FOptsLen=rawPayload[5] & 0x0F
+        
+            # message format - only FRM_PAYLOAD (if any) is encoded in MAC 1.0.x
+            # parts enclosed in [] are optional. Size in bytes is enclosed in ()
+            # MHDR(1),DEVADDR(4),FCTL(1),FCNT(2),[FOpts(1..N)] [FPort(1)],[FRM_PAYLOAD(1..N)],MIC(4)
+            
+            msgSize=12 + FOptsLen # excluding FPort & FRM_PAYLOAD
+            
+            if (rawPayloadLen-msgSize)==0:
+                self.logger.info("rawPayload does not have a FRMpayload or FPort")
+                self.MAC.processFopts(rawPayload[8:8+FOptsLen])
+                return
+                    
+            # looks like a proper downlink with data sent to me
+            # so lets try to understand it
+            newskey=self.MAC.getNewSKey()
+            appskey=self.MAC.getAppSKey()
+
+            lorawan = lorawan_msg(newskey,appskey)
+            lorawan.read(rawPayload)
+
+            decodedPayload=lorawan.get_payload() # must call before valid_mic()
+            lorawan.valid_mic()
+
+            self.validMsgRecvd=True
+            
+            self.MAC.setLastSNR(self.get_pkt_snr_value()) # used for MAC status reply
+                
+            if self.downlinkCallback is not None:
+                self.downlinkCallback(decodedPayload,mtype)
+             
+            # finally process any MAC commands
+            self.MAC.handleCommand(lorawan.get_mac_payload())
+              
+        except Exception as e:
+            self.logger.debug(f"Error processing downlink mtype={mtype} error was {e}.")
+            
 
     def on_rx_done(self):
         """
             Callback on RX complete, signalled by I/O
+            
+            Several calls may throw errors, we ignore the payload if any occur
         """
         self.clear_irq_flags(RxDone=1)
-        self.logger.debug("Recieved message")
+        self.logger.debug("Received message...")
               
-        try:
-
-            payload = self.read_payload(nocheck=True)
+        # read the payload from the radio
+        # this may or may not be a valid lorawan message
+        rawPayload = self.read_payload(nocheck=True)
+        decodedPayload=bytearray() # keeps the compiler happy
+        
+        if rawPayload is None:
+            self.logger.debug("rawPayload is None")
+            return
             
-            if payload is None:
-                self.logger.info("payload is None")
-                return
+        self.logger.debug(f"raw payload {rawPayload}")         
+        
+        # MHDR is not encoded and is first byte of the rawPayload
+        mtype=rawPayload[0] & 0xE0
+        
+        if mtype==MHDR.JOIN_ACCEPT:
+            self.process_JOIN_ACCEPT(rawPayload)
+            return
+                
+        # don't process any other messages till we have registered
+        # since we don't have the keys to decode FRM payloads they may
+        # come from dubious sources
+        if not self.registered():
+            self.logger.debug(f"received a message mtype={mtype} but we haven't joined yet. Ignored")
+            return
+      
+        # 12 bytes is the absolute minimum rawPayload length
+        if len(rawPayload)<12:
+            self.logger.debug(f"received invalid message. Too small.")
+            return
            
-            if not self.config.joined():
-               # not joined yet
-               self.logger.info("processing JOIN_ACCEPT payload")
-               lorawan = lorawan_msg([], self.appkey)
-               lorawan.read(payload)
-               decodedPayload=lorawan.get_payload()
-            else:
-               # joined
-               self.logger.info("processing payload after joined")               
-               lorawan = lorawan_msg(self.network_key, self.apps_key)
-               lorawan.read(payload)
-               decodedPayload=lorawan.get_payload()
-        
-        except Exception as e:
-            self.logger.exception("Exception %s",e)
+        # check the devaddr
+        if list(reversed(rawPayload[1:5]))!=self.MAC.getDevAddr():
+            # message is not for me
+            self.logger.info("downlink message is not addressed to me")
             return
-        
-        mtype=lorawan.get_mhdr().get_mtype()
-        self.logger.debug("Processing message: MDHR version %s mtype %s payload %s ",lorawan.get_mhdr().get_mversion(), mtype,decodedPayload)
+               
+        # process any other downlink messages
+        if mtype==MHDR.UNCONF_DATA_DOWN or mtype==MHDR.CONF_DATA_DOWN:
+            self.process_DATA_DOWN(rawPayload)
+            return
+                
+        self.logger.debug(f"Unhandled mtype {mtype}. Message ignored.")        
+        return
+       
 
-        if mtype == MHDR.JOIN_ACCEPT:
-            self.logger.debug("Processing JOIN_ACCEPT")
-            #It's a response to a join request
-            lorawan.valid_mic()
-            self.device_addr = lorawan.get_devaddr()
-            self.logger.info("Device: %s", self.device_addr)
-            self.network_key = lorawan.derive_nwskey(self.devnonce)
-            self.logger.info("Network key: %s", self.network_key)
-            self.apps_key = lorawan.derive_appskey(self.devnonce)
-            self.logger.info("APPS key: %s", self.apps_key)
-            self.frame_count = 1
-            self.config.save_credentials(
-                    self.device_addr, self.network_key,
-                    self.apps_key, self.frame_count)
-            return
-        
-        elif mtype==MHDR.UNCONF_DATA_DOWN or mtype==MHDR.CONF_DATA_DOWN:
-            self.logger.debug("Downlink data received")
-            
-            if self.downlinkCallback is not None:
-                lorawan.valid_mic()
-                self.downlinkCallback(decodedPayload,mtype)
-            return
-        else:
-            self.logger.debug("Unexpected message type %s",mtype)
-        
+    def lastAirTime(self):
+        """
+            return the duration of the last transmission
+            enables user to adhere to LoRa & TTN rules
 
-        
+        :return: time of last transmission or 0 (none)
+
+        """
+        if self.txStart is not None and self.txEnd is not None:
+            return self.txEnd-self.txStart
+        return 0
+
     def on_tx_done(self):
         """
-            Callback on TX complete is signaled using I/O
+            ISR. Callback on TX complete.
+            
+            Switch immediately to RX1 and set timers to switch to RX2 or retry
+            join if no reply.
+            
         """
-        self.logger.debug("TX Complete")
         self.clear_irq_flags(TxDone=1)
+        self.txEnd=time()               # enables computation of actual TX time
+        self.transmitting=False         # let callers know we are done
+        self.validMsgRecvd=False        # waiting for valid downlink msg
         self.set_mode(MODE.STDBY)
         self.set_dio_mapping([0, 0, 0, 0, 0, 0])
         self.set_invert_iq(1)
         self.reset_ptr_rx()
-        self.set_mode(MODE.RXCONT)
+        
+        # RX1 settings can be changed by MAC commands
+        self.logger.info("switching to RX1")
+        self.configureRadio(radioSettings.RX1)
+        
+        # set a timer ready to switch to RX2 after rx1_delay + rx_window (normally 1 second)
+        # this may not be accurate and delay may need to be slightly smaller
+        t1=threading.Timer(self.MAC.getRX1Delay()+self.config[TTN][RX_WINDOW],function=self.switchToRX2)
+        
+        # check if retries have expired
+        # this will be the case for a normal packet send after joining
+        
+        if self.join_retries==0:
+            return
+        
+        # if we never receive a JOIN_ACCEPT we should retry
+        t2=threading.Timer(self.config[TTN][JOIN_TIMEOUT],function=self._retryJoin)
+        
+    def _retryJoin(self):
+        """
+        called by a thread timer after a timeout waiting for a JOIN_ACCEPT
+    
+        """
+        if self.registered():
+            return
+            
+        self.logger.info(f"retrying join  # {self.join_retries}")
+        
+        if self.join_retries>0:
+            self.join_retries-=1
+            self._tryToJoin()
 
 
     def join(self):
         """
-            Perform the OTAA auth in order to get the keys requried to transmit
+        try to join TTN 
+        
+        The join frequency is randomly chosen from the first three frequencies
+        in the frequency plan.
+
+        NOTE: bandwidth (BW) range is defined in dragino/SX127x/constants.py and is essentially 
+        an int in range 0..9 determined by the radio not TTN but limited by TTN
+
         """
-        if self.config.auth == AUTH_ABP:
-            self.logger.info("Using ABP no need to Join")
-        elif self.config.auth == AUTH_OTAA:
-            if self.config.joined():
-                self.logger.info("Using cached details")
-                self.logger.debug(self.config.devaddr)
-                self.device_addr = self.config.devaddr
-                self.network_key = self.config.nwkskey
-                self.apps_key = self.config.appskey
-            else:
-                self.logger.debug("Performing OTAA Join")
-                appkey = self.appkey
-                appeui = self.appeui
-                deveui = self.deveui
-                self.logger.info("App key = %s", appkey)
-                self.logger.info("App eui = %s", appeui)
-                self.logger.info("Dev eui = %s", deveui)
-                self._choose_freq(True)
-                lorawan = lorawan_msg(appkey)
-                lorawan.create(
-                    MHDR.JOIN_REQUEST,
-                    {'deveui': deveui, 'appeui': appeui, 'devnonce': self.devnonce})
-                self.write_payload(lorawan.to_raw())
-                self.set_mode(MODE.TX)
-        else:
-            self.logger.error("Unknown auth mode")
+
+        # have we already joined?
+        # this will be true if using ABP
+        if self.registered():
+            self.logger.info("Already joined, nothing to do")
             return
 
+        mode=self.config[TTN][AUTH_MODE]
+     
+        if mode != AUTH_OTAA:
+            self.logger.error(f"Unknown auth_mode {mode}")
+            return
+
+        self.logger.info("Performing OTAA Join")
+
+        self.configureRadio(radioSettings.JOIN)
+
+        self.join_retries=self.config[TTN][JOIN_RETRIES]
+        
+        return self._tryToJoin()
+
+
+    def _tryToJoin(self):
+        """
+            Perform the OTAA auth in order to get the keys required to transmit
+        """
+        self.logger.info("trying to join TTN")
+        if self.registered():
+            self.logger.debug("already joined")
+            return
+        
+        self.devnonce = [randrange(256), randrange(256)] #random devnonce 2 bytes
+
+        appkey=self.MAC.getAppKey()
+        appeui=self.MAC.getAppEui()
+        deveui=self.MAC.getDevEui()
+        self.logger.debug(f"App key = {appkey}")
+        self.logger.debug(f"App eui = {appeui}")
+        self.logger.debug(f"Dev eui = {deveui}")
+        self.logger.debug(f"Devnonce= {self.devnonce}")
+                
+        lorawan = lorawan_msg(appkey)
+                
+        lorawan.create(
+                    MHDR.JOIN_REQUEST,
+                    {'deveui': deveui, 'appeui': appeui, 'devnonce': self.devnonce})
+                
+        packet=lorawan.to_raw()
+        self.write_payload(packet)
+        
+        self.logger.debug(f"sending packet {packet}")
+        self.set_mode(MODE.TX)
+        self.transmitting=True
+        self.validMsgRecvd=False
+        # used to calculate air time
+        self.txStart=time()
+        self.txEnd=None
+        
+
+    def getDutyCycle(self,freq=None):
+        """
+        returns the current duty cycle
+        
+        returns None if duty cycle is not in the valid range
+        """
+        return self.MAC.getMaxDutyCycle(freq)
+        
     def registered(self):
         """
-            Returns true if either ABP is used for auth, in which case registration
-            is hardcoded, otherwise check that join has been run
+            return True if we have a device address.
+            For ABP this is hard coded for OTAA
+            it exists if we have joined.
+            NOTE: this is also cached so a rejoin is not
+            necessary following a power cycle and join() will
+            return without trying to join.
+            To force a re-join and startup delete the MAC cache
+            file.
         """
-        return self.device_addr is not None
+            
+        self.logger.info(f"checking if already registered.")
+        
+        try:
 
-    def send_bytes(self, message):
+            devaddr=self.MAC.getDevAddr()
+                
+            self.logger.info(f"devaddr {devaddr} len {len(devaddr)}.")
+            
+            # dev address is always 4 bytes
+            if len(devaddr)!=4:
+                self.logger.debug("invalid devaddr != 4 bytes")
+                return False
+
+            if devaddr==[0x00, 0x00, 0x00, 0x00]:
+                self.logger.debug("devaddr not assigned ")
+                return False
+                
+            # TTN devaddr always starts 0x26 or 0x27
+            if devaddr[0] != 0x26 and devaddr[0] != 0x27:
+                self.logger.debug(f"Invalid TTN devaddr {devaddr}, should begin with 0x26 or 0x27")
+                return False  
+            
+            self.logger.info("Already registered")
+            return True
+                
+        except Exception as e:
+            self.logger.info(f"whilst checking devaddr {devaddr} error was {e}")
+            return False
+    
+    def _sendPacket(self,message,port=1):
+        """
+        Send the uplink message and any MAC replies
+
+        Used by normal uplink messages. See _tryToJoin() for actual joining.
+        
+        We always use a random frequency for sending.
+        
+        :param message: bytearray
+        :param port: 1..254 
+        """
+
+        try:
+            
+            # check if joined
+            if not self.registered():
+                self.logger.warn("attempt to send uplink but not joined")
+                return
+                
+            # disable retry timeout
+            self.join_retries=0
+              
+            self.configureRadio(radioSettings.SEND)
+
+            newskey=self.MAC.getNewSKey()
+            appskey=self.MAC.getAppSKey()
+            lorawan = lorawan_msg(newskey,appskey)
+            
+            try:
+                FCntUp=self.MAC.getFCntUp()
+                if FCntUp is None:
+                    FCntUp=0
+            except:
+                FCntUp=0
+                
+            devaddr=self.MAC.getDevAddr()
+            FOpts,FOptsLen=self.MAC.getFOpts() # can be an empty bytearray
+            
+            #lorawan.create(MHDR.UNCONF_DATA_UP, {'devaddr': devaddr, 'fcnt': FCntUp, 'data': message})
+            if FOptsLen>0:
+                lorawan.create(MHDR.UNCONF_DATA_UP,{
+                    'devaddr': devaddr, 
+                    'fcnt': FCntUp, 
+                    'data': message,
+                    'fport':port,
+                    'fopts':FOpts})
+            else:
+                lorawan.create(MHDR.UNCONF_DATA_UP,{
+                'devaddr': devaddr, 
+                'fcnt': FCntUp, 
+                'data': message,
+                'fport':port})
+            
+            self.MAC.setFCntUp(FCntUp+1)
+        
+            # encode the packet
+            raw_payload=lorawan.to_raw()
+
+            # load into radio fifo
+            self.write_payload(raw_payload)
+            self.logger.debug(f"Sending packet raw payload = {raw_payload}")
+
+            self.set_dio_mapping([1, 0, 0, 0, 0, 0])
+
+            self.transmitting=True
+            self.validMsgRecvd=False
+            self.set_mode(MODE.TX)
+            # used to calculate air time
+            self.txStart=time()
+            self.txEnd=None
+
+        except ValueError as err:
+            self.logger.exception(err)
+            self.logger.error(f"Value error {err}")  # was: raise DraginoError(str(err)) from None
+
+        except KeyError as err:
+            self.logger.error(err)
+            
+        except Exception as exp:
+            #self.logger.error(f"packet error {exp}")
+            self.logger.exception(exp)
+
+
+    def send_bytes(self, message,port=1):
         """
             Send a list of bytes over the LoRaWAN channel
+
+            called by send("message") to create a byte array or directly if message
+            is already a byte array
         """
         attempt = 0
-        if self.network_key is None or self.apps_key is None: # either using ABP / join has  run
-            raise DraginoError("No network and/or apps key")
-        while attempt <= self.lora_retries: # try a couple of times because of
-            self._choose_freq()
-            attempt += 1 #  intermittent malformed packets nasty hack
-            try: #shouldn't be needed
-                lorawan = lorawan_msg(self.network_key, self.apps_key)
-                lorawan.create(
-                    MHDR.UNCONF_DATA_UP,
-                    {'devaddr': self.device_addr,
-                     'fcnt': self.frame_count,
-                     'data': message})
-                self.logger.debug("Frame count %d", self.frame_count)
-                self.frame_count += 1
-                self.write_payload(lorawan.to_raw())
-                self.logger.debug("Packet = %s", lorawan.to_raw())
-                self.set_dio_mapping([1, 0, 0, 0, 0, 0])
-                self.set_mode(MODE.TX)
-                self.logger.info(
-                    "Succeeded on attempt %d/%d", attempt, self.lora_retries)
-                self._save_frame_count()
-                return
-            except ValueError as err:
-                self.logger.error(str(err))
-                raise DraginoError(str(err)) from None
-            except MalformedPacketException as exp:
-                self.logger.error(exp)
-            except KeyError as err:
-                self.logger.error(err)
+        if self.MAC.getNewSKey() is None or self.MAC.getAppSKey() is None:
+            self.logger.error("no newSKey or AppSKey")
+            return
 
-    def send(self, message):
+        self._sendPacket(message,port)
+
+
+    def send(self, message, port=1):
         """
-            Send a string over the channel
+            Send a string message over the channel
         """
-        self.send_bytes(list(map(ord, str(message))))
+        self.send_bytes(list(map(ord, str(message))),port)
 
-    def get_gps(self):
-        """
-            Get the GPS position from the dragino,
-            waits for the specified timeout and then gives up
-        """
-        start = datetime.utcnow()
-        end = start + timedelta(seconds=self.config.gps_wait_period)
-        self.logger.info(
-            "Waiting for %d seconds until %s", self.config.gps_wait_period, end)
-        msg = None
-
-        while datetime.utcnow() < end:
-            try:
-                # read the serial port, convert to a string
-                gps_data = self.gps_serial.readline().decode()
-            except UnicodeDecodeError:
-                #not yet got valid data from gps
-                continue
-            gps_data_arr = gps_data.split(",")
-            if gps_data_arr[0] == "$GPGGA": #It's a position string
-                #print(gps_data)
-                msg = pynmea2.parse(gps_data)
-                break
-        # this will be None if no message is decoded, otherwise it'll contain the information
-        return msg
-
-class DraginoError(Exception):
-    """
-        Error class for dragino class
-    """
-
-class DraginoConfig():
-    """
-        Reads an ini file containing the configuration for the dragino board
-    """
-    def __init__(self, config_file, log_level=DEFAULT_LOG_LEVEL):
-        """
-            Read in the config and create the object
-        """
-        self.logger = logging.getLogger("DraginoConfig")
-        self._config_file = config_file
-        logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
-        self.logger.setLevel(log_level)
-        try:
-            config = ConfigObj(config_file)
-            self._config = config
-            self._config.filename = config_file
-            self.gps_baud_rate = int(config["gps_baud_rate"])
-            self.gps_serial_port = config["gps_serial_port"]
-            self.gps_serial_timeout = int(config["gps_serial_timeout"])
-            self.gps_wait_period = int(config["gps_wait_period"])
-            self.spreading_factor = int(config["spreading_factor"])
-            self.max_power = int(config["max_power"], 16)
-            self.output_power = int(config["output_power"], 16)
-            self.sync_word = int(config["sync_word"], 16)
-            self.rx_crc = bool(config["rx_crc"])
-            self.fcount_filename = config["fcount_filename"]
-            auth = config["auth_mode"]
-            if auth.upper() == "ABP":
-                self.logger.info("Using ABP mode")
-                self.auth = AUTH_ABP
-                self.devaddr = self._convert_array(config["devaddr"])
-                self.nwskey = self._convert_array(config["nwskey"])
-                self.appskey = self._convert_array(config["appskey"])
-            elif auth.upper() == "OTAA":
-                self.logger.info("Using OTAA mode")
-                self.auth = AUTH_OTAA
-                self.deveui = self._convert_array(config["deveui"])
-                self.appeui = self._convert_array(config["appeui"])
-                self.appkey = self._convert_array(config["appkey"])
-                try:
-                    self.devaddr = self._convert_array(config["devaddr"], 10)
-                    self.nwkskey = self._convert_array(config["nwkskey"], 10)
-                    self.appskey = self._convert_array(config["appskey"], 10)
-                except (KeyError, ValueError):
-                    self.logger.warning("Unable to read session details")
-                    self.devaddr = None
-                    self.nwkskey = None
-                    self.appskey = None
-            else:
-                self.logger.critical("Unsupported auth mode chosen: %s", auth)
-                raise DraginoError("Unsupported auth mode")
-            try:
-                self.fcount = int(config["fcount"])
-            except KeyError:
-                self.fcount = self._read_legacy_fcount() #load from previos file
-                self.save()
-            self.logger.debug("GPS Baud Rate: %d", self.gps_baud_rate)
-            self.logger.debug("GPS Serial Port: %s", self.gps_serial_port)
-            self.logger.debug("GPS Serial Timeout: %s", self.gps_serial_timeout)
-            self.logger.debug("GPS Wait Period: %d", self.gps_wait_period)
-            self.logger.debug("Spreading factor: %d", self.spreading_factor)
-            self.logger.debug("Max Power: %02X", self.max_power)
-            self.logger.debug("Output Power: %02X", self.output_power)
-            self.logger.debug("Sync Word: %02X", self.sync_word)
-            self.logger.debug("RX CRC: %s", str(self.rx_crc))
-            self.logger.debug("Frame Count Filename: %s", self.fcount_filename)
-            self.logger.debug("Auth mode: %s", self.auth)
-            if self.auth == AUTH_ABP:
-                self.logger.debug(
-                    "Device Address: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.devaddr))
-                self.logger.debug(
-                    "Network Session Key: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.nwskey))
-                self.logger.debug(
-                    "App Session Key: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.appskey))
-            elif self.auth == AUTH_OTAA:
-                self.logger.debug(
-                    "Device EUI: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.deveui))
-                self.logger.debug(
-                    "App EUI: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.appeui))
-                self.logger.debug(
-                    "App Key: %s", " ".join(
-                        '{:02X}'.format(x) for x in self.appkey))
-        except KeyError as err:
-            self.logger.critical("Missing required field %s", str(err))
-            raise DraginoError(err) from None
-        except ValueError as err:
-            self.logger.critical("Unable to parse number %s", str(err))
-            raise DraginoError(err) from None
-
-    def joined(self):
-        joined = bool(self.appskey) and bool(self.devaddr) and bool(self.nwkskey)
-        self.logger.debug("Joined %r", joined)
-        return joined
-
-    def save(self):
-        """
-            save back out to file - need to update the object with the parameters
-            that can legitimately have changed
-        """
-        self._config["fcount"] = self.fcount
-        if self.auth == AUTH_OTAA: #have session params to save
-            self._config["appskey"] = self.appskey
-            self._config["devaddr"] = self.devaddr
-            self._config["nwkskey"] = self.nwkskey
-        self._config.write()
-
-    def save_credentials(self, devaddr, nwskey, appskey, fcount):
-        self.devaddr = devaddr
-        self.nwkskey = nwskey
-        self.appskey = appskey
-        self.fcount = fcount
-        self.save()
-
-    def save_fcount(self, fcount):
-        self.logger.debug("Saving fcount")
-        self.fcount = fcount
-        self.save()
-
-    def get_fcount(self):
-        return self.fcount
-
-    def _read_legacy_fcount(self):
-        fname = self._config["fcount_filename"]
-        if not os.path.isfile(fname):
-            self.logger.warning("No frame count file available")
-            return 1
-        self.logger.info("Reading Frame count from: %s", fname)
-        try:
-            with open(fname, "r") as f_handle:
-                return int(f_handle.readline())
-        except (IOError, ValueError) as exp:
-            self.logger.error("Unable to open fcount file. Resettting count")
-            self.logger.error(str(exp))
-            return 1
-
-    def _convert_array(self, arr, base=16):
-        """
-            Takes an array of hex strings and converts them into integers
-        """
-        new_arr = []
-        for item in arr:
-            new_arr.append(int(item, base))
-        self.logger.debug("Converted %d/%d items", len(new_arr), len(arr))
-        return new_arr

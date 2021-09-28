@@ -15,7 +15,7 @@ logLevel=logging.DEBUG
 logging.basicConfig(filename="test.log", format='%(asctime)s - %(funcName)s - %(lineno)d - %(levelname)s - %(message)s', level=logLevel)
 
 
-D = Dragino("dragino.ini", logging_level=logLevel)
+D = Dragino("config.toml", logging_level=logLevel)
 D.join()
 while not D.registered():
     print("Waiting for JOIN ACCEPT")

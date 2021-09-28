@@ -1,3 +1,40 @@
+# Introduction
+
+This is a clone of https://github.com/computenodes/LoRaWAN.git which ends development with the TTN V2.
+
+It has been heavily modified to :-
+
+* Support MAC V1.0.4 commands
+* Use timers to switch to listen on RX2 after RX1 delay plus 1 second
+* Changed user configuration file to TOML format
+* Cache all parameters
+* Added flags to indicate if the system is transmitting
+* added methods to get the last transmit air-time so that adherence to the LoRa duty cycle can be controlled
+* 
+
+
+TODO
+
+* support both class A & C operation (not class B)
+* support MAC commands
+* support transmit timing to aid compliance with the duty cycle limitations and fair use policy
+* switch to TOML config files
+
+# Downlink Messages
+
+This code does support passing unconfirmed/confirmed downlink messages to your handler. Checkout the test_downlink.
+py example.
+
+Be aware that your downlink handler is called during an interrupt and should not spend too much time fiddling about. 
+I recommend you push the information onto a queue and deal with the queue in a separate thread. Having said that you 
+are unlikely to experience a flood of downlinks. There is a recommended max of 10 per day with TTN.
+
+The TTN servers only send downlinks after an uplink - I assume that is so TTN doesn't send messages to someone who 
+isn't listening.
+
+
+
+
 # LoRaWAN
 This is a LoRaWAN v1.0 implementation in python for the Dragino LoRa/GPS HAT, it is currently being used to connect to the things network https://thethingsnetwork.org.  It is based on work at https://github.com/jeroennijhof/LoRaWAN
 
