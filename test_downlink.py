@@ -7,6 +7,8 @@
 
     Downlink messages are only sent for class A devices after an uplink
     message is received by TTN.
+
+    cache.json will be created if it doesn't exist
 """
 import logging
 from time import sleep,time
@@ -14,13 +16,14 @@ import RPi.GPIO as GPIO
 from dragino import Dragino
 from dragino.LoRaWAN.MHDR import *
 
-
 GPIO.setwarnings(False)
 
 logLevel=logging.DEBUG
 logging.basicConfig(filename="test_downlink.log", format='%(asctime)s - %(funcName)s - %(lineno)d - %(levelname)s - %(message)s', level=logLevel)
 
 logging.info("Starting session")
+
+# downlink handling
 
 callbackReceived=False
 
@@ -42,8 +45,8 @@ def downlinkCallback(payload,mtype):
     else:
         print("Received CONF_DATA_DOWN payload:",payload)
 
-
-D = Dragino("config.toml", logging_level=logLevel)
+# join to TTN
+D = Dragino("dragino.toml", logging_level=logLevel)
 
 D.setDownlinkCallback(downlinkCallback)
 
@@ -53,7 +56,7 @@ while not D.registered():
     sleep(2)
 
 
-print("Sending a message to prompt for any scheduled downlinks.")
+print("Sending an uplink message to prompt for any scheduled downlinks.")
 D.send("hello")
 
 print("Waiting for callback message. Press CTRL-C to quit.")

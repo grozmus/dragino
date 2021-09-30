@@ -1,44 +1,76 @@
 # Introduction
 
-This is a clone of https://github.com/computenodes/LoRaWAN.git which ends development with the TTN V2.
+This is a clone of https://github.com/computenodes/LoRaWAN.git which ended development with the TTN V2.
 
-It has been heavily modified to :-
+This has been heavily modified to :-
 
 * Support MAC V1.0.4 commands
-* Use timers to switch to listen on RX2 after RX1 delay plus 1 second
+* Use threading timers to switch to listen on RX2 after RX1 delay if a valid message is not received in RX1.
 * Changed user configuration file to TOML format
-* Cache all parameters
+* Cache all TTN parameters
 * Added flags to indicate if the system is transmitting
 * added methods to get the last transmit air-time so that adherence to the LoRa duty cycle can be controlled
-* 
-
 
 TODO
 
 * support both class A & C operation (not class B)
-* support MAC commands
-* support transmit timing to aid compliance with the duty cycle limitations and fair use policy
-* switch to TOML config files
+
+# Lora Duty Cycle
+
+This is not managed by the dragino code. However, your code can comply as follows (though could be better implemented)
+
+```
+# note this is just an outline
+from time import sleep
+from dragino import Dragino
+
+D = Dragino("dragino.toml", logging_level=logLevel)
+
+D.join()
+while not D.registered():
+ sleep(0.1)
+
+message="hello world"
+
+while True:
+  D.send(message)
+
+  while D.transmitting:
+    sleep(0.1) # or do something useful
+
+  airtime=D.lastAirTime()
+  sleep(99*airtime)       # for a 1% duty cycle
+
+```
+
+# TTN Fair Use
+
+TTN Fair Use limits you to a max of 30 seconds airtime in any 24 hour period. There are a number of ways to do that and I'll leave it to your imagination.
+
 
 # Downlink Messages
+
+TTN Fair use policy limits you to 10 downlinks per 24 hour period.
 
 This code does support passing unconfirmed/confirmed downlink messages to your handler. Checkout the test_downlink.
 py example.
 
-Be aware that your downlink handler is called during an interrupt and should not spend too much time fiddling about. 
-I recommend you push the information onto a queue and deal with the queue in a separate thread. Having said that you 
+Be aware that your downlink handler is called during an interrupt and should not spend too much time fiddling about.
+I recommend you push the information onto a queue and deal with the queue in a separate thread. Having said that you
 are unlikely to experience a flood of downlinks. There is a recommended max of 10 per day with TTN.
 
-The TTN servers only send downlinks after an uplink - I assume that is so TTN doesn't send messages to someone who 
+The TTN servers only send downlinks after an uplink - I assume that is so TTN doesn't send messages to someone who
 isn't listening.
 
+See https://www.thethingsnetwork.org/docs/lorawan/classes/ for a complete description of LoRaWAN device classes.
 
+Briefly, for class A device, downlink messages will only be sent after an uplink message. This is generally the type of device most people will be using as it consumes the least power on, for example, Arduino sensor devices. However, a Raspberry Pi + dragino HAT is constantly powered so when it isn't transmitting it can be always listening.
 
 
 # LoRaWAN
-This is a LoRaWAN v1.0 implementation in python for the Dragino LoRa/GPS HAT, it is currently being used to connect to the things network https://thethingsnetwork.org.  It is based on work at https://github.com/jeroennijhof/LoRaWAN
+This is a LoRaWAN v1.0 implementation in python for the Raspberry Pi Dragino LoRa/GPS HAT, it is currently being used to connect to the things network https://thethingsnetwork.org and is based on work from https://github.com/jeroennijhof/LoRaWAN
 
-It uses https://github.com/mayeranalytics/pySX127x.
+It also uses https://github.com/mayeranalytics/pySX127x.
 
 See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0.pdf
 
@@ -48,7 +80,7 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
 * LoRa/GPS HAT
 * Raspberry Pi power supply
 
-## Installation
+## Installation (Compute nodes version)
 1. Install Raspbian on the Raspberry Pi
 2. Enable SPI using raspi-config
 3. Enable Serial using raspi-config (no login shell)
@@ -71,13 +103,3 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
 
 ## Additional Chip Select Details
 For some reason the Dragino board does not use one of the standard chip select lines for the SPI communication.  This can be overcome by using a device tree overlay to configure addtional SPI CS lines.  I am not a device tree expert so I adapted the example given at https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=157994 to provide the code needed for this to work.  
-
-## Downlink messages
-
-See https://www.thethingsnetwork.org/docs/lorawan/classes/ for a complete description of LoRaWAN device classes.
-
-Briefly, for class A device, downlink messages will only be sent after an uplink message. This is generally the type of device most people will be using as it consumes the least power on, for example, Arduino sensor devices. However, a Raspberry Pi + dragino HAT is constantly powered so when it isn't transmitting it can be always listening.
-
-## TODO
-* Make code more readable and easier to use (From upstream)
-* investigate device tree compilation warnings

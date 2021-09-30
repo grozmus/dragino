@@ -11,9 +11,10 @@ AUTH_MODE="auth_mode"
 
 LOG_FORMAT='%(asctime)s %(name)s - %(funcName)s - %(lineno)d - %(levelname)s - %(message)s'
 
-CLASS_A="A"     # with a Pi Class A and B are almost the same (always on)
+CLASS_A="A"     # with a Pi Class A and B are almost the same (always listening)
 CLASS_B="B"     # not supported
 CLASS_C="C"
+
 DEVICE_CLASS="device_class"
 DATA_RATE="data_rate"
 FCNTUP="fCntUp"
@@ -38,7 +39,6 @@ DUTY_CYCLE_RANGE="duty_cycle_range"
 DUTY_CYCLE_TABLE="duty_cycle_table"
 MAX_DUTY_CYCLE="max_duty_cycle"
 
-#SPREADING_FACTOR="spreading_factor" # default in config.toml
 SF_RANGE="sf_range"
 DEVADDR="devaddr"
 DEVEUI="deveui"
@@ -85,6 +85,6 @@ MAC_SETTINGS=[
             FCNTUP,FCNTDN,RX1_DELAY,RX2_DELAY,RX1_DR, RX2_DR,RX1_FREQ_FIXED,
             RX1_FREQUENCY,RX2_FREQUENCY,DUTY_CYCLE,LORA_FREQS,DATA_RATE
             ]
-            
+
 #TTN keys
 KEY_SETTINGS=[DEVADDR,DEVEUI,NEWSKEY,APPSKEY,APPEUI,APPKEY]
