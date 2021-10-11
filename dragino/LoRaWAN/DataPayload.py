@@ -59,7 +59,7 @@ class DataPayload:
         cipher = AES.new(bytes(key))
         s = cipher.encrypt(bytes(a))
 
-        padded_payload = []
+        padded_payload = bytearray()
         padding=[0x00] * 16
         for i in range(k):
             idx = (i + 1) * 16
@@ -88,8 +88,8 @@ class DataPayload:
         cipher = AES.new(bytes(key))
         s = cipher.encrypt(bytes(a))
 
-        padded_payload = []
-        padding=[0x00]*16
+        padded_payload = bytearray()
+        padding=bytearray([0x00]*16)
         for i in range(k):
             idx = (i + 1) * 16
             padded_payload += (data[idx - 16:idx] + padding)[:16]
