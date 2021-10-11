@@ -767,8 +767,8 @@ class MAC_commands(object):
         bits 5..0 SNR 6 bit signed int
 
         """
-        self.logger.info(f"Dev Status Req - returns (0,{self.lastSNR})")
-        self.macReplies+=[MCMD.DEV_STATUS_REQ,0,self.lastSNR]
+        self.logger.info(f"Dev Status Req - returns (0,{int(self.lastSNR)})")
+        self.macReplies+=[MCMD.DEV_STATUS_REQ,0,int(self.lastSNR)]
         self.macIndex+=1
 
     def new_channel_req(self):
