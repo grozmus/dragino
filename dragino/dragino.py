@@ -393,6 +393,9 @@ class Dragino(LoRa):
             return self.txEnd-self.txStart
         return 0
 
+	def getDataRate(self):
+		return self.MAC.getDataRate()
+		
     def on_tx_done(self):
         """
             ISR. Callback on TX complete.
