@@ -32,6 +32,7 @@ from .MAChandler import MAC_commands
 from .Config import TomlConfig
 from .Strings import *
 import threading
+from .GPShandler import GPS
 
 
 # Dragino.py is called from classes in the
@@ -130,6 +131,8 @@ class Dragino(LoRa):
         self.txEnd=None
 
         self.logger.info("__init__ done")
+		
+		self.GPS=GPS()
 
     def setDownlinkCallback(self,func=None):
         """
@@ -667,3 +670,10 @@ class Dragino(LoRa):
             Send a string message over the channel
         """
         self.send_bytes(list(map(ord, str(message))),port)
+
+	def get_gps(self):
+		return self.GPS.get_gps()
+		
+	def get_corrected_timestamp(self):
+		return self.GPS.get_corrected_timestamp()
+		
