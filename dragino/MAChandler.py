@@ -215,6 +215,9 @@ class MAC_commands(object):
         self.logger.debug(f"using join settings freq {freq} sf {sf} bw {bw}")
         return freq,sf,bw
 
+	def getDataRate(self):
+		return self.cache[DATA_RATE]
+
     def getLastSendSettings(self):
         """
         :return tuple: (freq,sf,bw)
