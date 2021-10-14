@@ -129,10 +129,10 @@ class Dragino(LoRa):
         self.validMsgRecvd=False     # used to detect valid msg receive in RX1
         self.txStart=None          # used to compute last airTime
         self.txEnd=None
-
-        self.logger.info("__init__ done")
 		
 		self.GPS=GPS()
+
+        self.logger.info("__init__ done")
 
     def setDownlinkCallback(self,func=None):
         """
