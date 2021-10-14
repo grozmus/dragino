@@ -35,11 +35,11 @@ class GPS:
         self.lon=None
         self.timestamp=None
         self.lastGpsReading=None
-		# used to control the thread execution
-		self.running=False
-		self.stopped=True
+        # used to control the thread execution
+        self.running=False
+        self.stopped=True
 
-        # gpsd settings - make sure gpsd is installed and running
+    # gpsd settings - make sure gpsd is installed and running
         self.gpsd_socket = agps3.GPSDSocket()
         self.gpsd_socket.connect('127.0.0.1', 2947)
         self.gpsd_socket.watch(gpsd_protocol='json', enable=True)
@@ -47,21 +47,21 @@ class GPS:
 
         if self.isThreaded:
             self.gpsThread=Thread(target=self._updater)
-			self.running=True
-			self.stopped=False
+            self.running=True
+            self.stopped=False
             self.gpsThread.start()
 
     def __del__(self):
         if self.isThreaded:
-			self.logger.info("Stopping the GPS background thread")
+            self.logger.info("Stopping the GPS background thread")
             self.running=False
-			while not self.stopped:
-				pass
+            while not self.stopped:
+                pass
             self.logger.info("GPS updater has stopped")
 
-	def stop(self):
-		self._del_()
-	
+    def stop(self):
+        self.__del__()
+
     def get_gps(self):
         """
             return the cached GPS values
@@ -105,8 +105,8 @@ class GPS:
         while self.running:
             self.update_gps()
             self.delay(self.threadLoopDelay)
-		self.stopped=True
-		
+        self.stopped=True
+
     def update_gps(self):
         """
             Get the GPS position from the dragino,
