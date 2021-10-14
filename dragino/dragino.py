@@ -677,3 +677,5 @@ class Dragino(LoRa):
 	def get_corrected_timestamp(self):
 		return self.GPS.get_corrected_timestamp()
 		
+	def stop(self):
+		self.GPS.stop()
