@@ -129,7 +129,7 @@ class GPS:
                 if data["class"] == "TPV":
                     self.lat = data["lat"]
                     self.lon = data["lon"]
-                    self.timeStamp = data["time"]
+                    self.timestamp = data["time"]
                     self.lastGpsReading = time()
             else:
                 self.logger.info("No new gps data")
