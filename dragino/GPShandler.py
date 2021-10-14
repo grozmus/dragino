@@ -53,12 +53,15 @@ class GPS:
 
     def __del__(self):
         if self.isThreaded:
-			self.logger.info("Stopping the background thread")
+			self.logger.info("Stopping the GPS background thread")
             self.running=False
 			while not self.stopped:
 				pass
             self.logger.info("GPS updater has stopped")
 
+	def stop(self):
+		self._del_()
+	
     def get_gps(self):
         """
             return the cached GPS values
