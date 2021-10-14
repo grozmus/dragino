@@ -15,6 +15,8 @@ CLASS_A="A"     # with a Pi Class A and B are almost the same (always listening)
 CLASS_B="B"     # not supported
 CLASS_C="C"
 
+GPSD="GPSD"
+
 DEVICE_CLASS="device_class"
 DATA_RATE="data_rate"
 FCNTUP="fCntUp"

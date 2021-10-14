@@ -130,7 +130,7 @@ class Dragino(LoRa):
         self.txStart=None          # used to compute last airTime
         self.txEnd=None
 		
-		self.GPS=GPS()
+		self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
 
         self.logger.info("__init__ done")
 
