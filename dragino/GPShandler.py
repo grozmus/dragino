@@ -70,8 +70,8 @@ class GPS:
             these values updated
 
         """
-        self.logger.info("get_gps(): lat %s, lon %s, timestamp: %s", self.lat, self.lon, self.timeStamp)
-        return self.lat, self.lon, self.timeStamp, self.lastGpsReading
+        self.logger.info("get_gps(): lat %s, lon %s, timestamp: %s", self.lat, self.lon, self.timestamp)
+        return self.lat, self.lon, self.timestamp, self.lastGpsReading
 
     def get_corrected_timestamp(self):
         """
