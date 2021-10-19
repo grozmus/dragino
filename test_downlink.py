@@ -27,7 +27,7 @@ logging.info("Starting session")
 
 callbackReceived=False
 
-def downlinkCallback(payload,mtype):
+def downlinkCallback(payload,mtype,fport=None):
     '''
     Called by dragino.on_rx_done() when an UNCONF_DATA_DOWN or CONF_DATA_DOWN downlink message arrives.
     Scheduling a CONF_DATA_DOW message requires an uplink response which
@@ -38,12 +38,12 @@ def downlinkCallback(payload,mtype):
     '''
     global callbackReceived
     callbackReceived = True
-    print("downlink message received")
+    print(f"downlink message received fport={fport}")
 
     if mtype==MHDR.UNCONF_DATA_DOWN:
-        print("Received UNCONF_DATA_DOWN payload:",payload)
+        print(f"Received UNCONF_DATA_DOWN payload: {payload}")
     else:
-        print("Received CONF_DATA_DOWN payload:",payload)
+        print(f"Received CONF_DATA_DOWN payload: {payload}")
 
 # join to TTN
 D = Dragino("dragino.toml", logging_level=logLevel)

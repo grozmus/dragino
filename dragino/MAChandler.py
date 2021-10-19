@@ -56,8 +56,6 @@ class MAC_commands(object):
 
     def __init__(self,config, logging_level=DEFAULT_LOG_LEVEL):
 
-
-
         self.logger = logging.getLogger("MAChandler")
         self.logger.setLevel(logging_level)
 
@@ -215,8 +213,8 @@ class MAC_commands(object):
         self.logger.debug(f"using join settings freq {freq} sf {sf} bw {bw}")
         return freq,sf,bw
 
-	def getDataRate(self):
-		return self.cache[DATA_RATE]
+    def getDataRate(self):
+        return self.cache[DATA_RATE]
 
     def getLastSendSettings(self):
         """
@@ -564,7 +562,6 @@ class MAC_commands(object):
         self.logger.warning(f"FOpts len={FOptsLen} exceeds 16 bytes={FOpts}")
         return [],0
 
-
 ####################################################
 #
 # here are the MAC command handlers
@@ -651,7 +648,6 @@ class MAC_commands(object):
                 
         # update any changes
         self.saveCache()
-
 
     def link_check_req(self):
         """

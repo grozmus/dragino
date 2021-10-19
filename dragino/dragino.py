@@ -129,8 +129,8 @@ class Dragino(LoRa):
         self.validMsgRecvd=False     # used to detect valid msg receive in RX1
         self.txStart=None          # used to compute last airTime
         self.txEnd=None
-		
-		self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
+
+        self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
 
         self.logger.info("__init__ done")
 
@@ -151,7 +151,6 @@ class Dragino(LoRa):
             self.downlinkCallback=func
         else:
             self.logger.info("downlinkCallback is not callable")
-
 
     def configureRadio(self,cfg):
         """
@@ -187,7 +186,6 @@ class Dragino(LoRa):
         self.set_bw(bw)
         self.set_mode(MODE.RXCONT)
 
-
     def switchToRX2(self):
         """
             called by threading timer elapsing after rx1_delay+1 following
@@ -203,7 +201,6 @@ class Dragino(LoRa):
             return
 
         self.configureRadio(radioSettings.RX2)
-
 
     def process_JOIN_ACCEPT(self,rawPayload):
         """
@@ -321,14 +318,14 @@ class Dragino(LoRa):
             self.MAC.setLastSNR(self.get_pkt_snr_value()) # used for MAC status reply
 
             if self.downlinkCallback is not None:
-                self.downlinkCallback(decodedPayload,mtype)
+                fport=lorawan.get_fport()
+                self.downlinkCallback(decodedPayload,mtype,fport)
 
             # finally process any MAC commands
             self.MAC.handleCommand(lorawan.get_mac_payload())
 
         except Exception as e:
             self.logger.debug(f"Error processing downlink mtype={mtype} error was {e}.")
-
 
     def on_rx_done(self):
         """
@@ -342,7 +339,6 @@ class Dragino(LoRa):
         # read the payload from the radio
         # this may or may not be a valid lorawan message
         rawPayload = self.read_payload(nocheck=True)
-        decodedPayload=bytearray() # keeps the compiler happy
 
         if rawPayload is None:
             self.logger.debug("rawPayload is None")
@@ -383,7 +379,6 @@ class Dragino(LoRa):
         self.logger.debug(f"Unhandled mtype {mtype}. Message ignored.")
         return
 
-
     def lastAirTime(self):
         """
             return the duration of the last transmission
@@ -396,9 +391,9 @@ class Dragino(LoRa):
             return self.txEnd-self.txStart
         return 0
 
-	def getDataRate(self):
-		return self.MAC.getDataRate()
-		
+    def getDataRate(self):
+        return self.MAC.getDataRate()
+
     def on_tx_done(self):
         """
             ISR. Callback on TX complete.
@@ -447,7 +442,6 @@ class Dragino(LoRa):
             self.join_retries-=1
             self._tryToJoin()
 
-
     def join(self):
         """
         try to join TTN
@@ -479,7 +473,6 @@ class Dragino(LoRa):
         self.join_retries=self.config[TTN][JOIN_RETRIES]
 
         return self._tryToJoin()
-
 
     def _tryToJoin(self):
         """
@@ -516,7 +509,6 @@ class Dragino(LoRa):
         # used to calculate air time
         self.txStart=time()
         self.txEnd=None
-
 
     def getDutyCycle(self,freq=None):
         """
@@ -649,7 +641,6 @@ class Dragino(LoRa):
             #self.logger.error(f"packet error {exp}")
             self.logger.exception(exp)
 
-
     def send_bytes(self, message,port=1):
         """
             Send a list of bytes over the LoRaWAN channel
@@ -664,18 +655,17 @@ class Dragino(LoRa):
 
         self._sendPacket(message,port)
 
-
     def send(self, message, port=1):
         """
             Send a string message over the channel
         """
         self.send_bytes(list(map(ord, str(message))),port)
 
-	def get_gps(self):
-		return self.GPS.get_gps()
-		
-	def get_corrected_timestamp(self):
-		return self.GPS.get_corrected_timestamp()
-		
-	def stop(self):
-		self.GPS.stop()
+    def get_gps(self):
+        return self.GPS.get_gps()
+
+    def get_corrected_timestamp(self):
+        return self.GPS.get_corrected_timestamp()
+
+    def stop(self):
+        self.GPS.stop()
