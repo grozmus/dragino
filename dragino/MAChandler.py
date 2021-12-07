@@ -125,7 +125,17 @@ class MAC_commands(object):
         self.macReplies=[]      # list of replies to MAC commands
         self.macCmds=None       # list of MAC commands in downlink
         self.macIndex=0         # pointer to next MAC cmd in macCmds
-        
+
+        # these values are tracked whenever a MAC linkCheckReq command is answered
+        #
+        # gw_margin is the signal strength above noise floor so min value gives us best
+        # indication of decoder success
+        # gw_cnt is the number of gateways which received our transmision. the linkCheckReq
+        # must be issued a number of times because gateways in reach may not be listening
+
+        self.gw_margin=0        # min is calculated
+        self.gw_cnt=255         # max is calculated
+
         self.logger.info("__init__ done")
 
     def setLastSNR(self,SNR):
@@ -141,7 +151,10 @@ class MAC_commands(object):
     getters and setters for cached values
     
     '''
-        
+
+    def getLinkCheckStatus(self):
+        return (self.gw_margin,self.gw_cnt)
+
     def getRX1Delay(self):
         return self.cache[RX1_DELAY]
 
@@ -664,16 +677,16 @@ class MAC_commands(object):
         
         Recieved payload will be 2 bytes [Margin][GwCnt]
         
-        GwCnt is number of gateways which received the LinkCheckReq from us
+        GwCnt is number of gateways which received the transmission from us
         Margin is the the demod margin (db) range 0..254 (255 reserved)
         
         no response needed
         """
         
-        # values are not used just logged
-        margin=self.macCmds[self.macIndex+1]
-        gw_cnt=self.macCmds[self.macIndex+2]
-        self.logger.debug(f"link check ans margin {margin} GwCnt {gw_cnt}")
+        # values can be retrieved with getLinkCheckStatus()
+        self.gw_margin=min(self.gw_margin,self.macCmds[self.macIndex+1])
+        self.gw_cnt=max(self.gw_cnt,self.macCmds[self.macIndex+2])
+        self.logger.debug(f"link check ans margin {self.gw_margin} GwCnt {self.gw_cnt}")
         self.macIndex+=3
         
     def link_adr_req(self):
