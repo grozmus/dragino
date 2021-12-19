@@ -51,6 +51,8 @@ class GPS:
             self.stopped=False
             self.gpsThread.start()
 
+        self.sentences={}   # cache for GPSD sentences
+
     def __del__(self):
         if self.isThreaded:
             self.logger.info("Stopping the GPS background thread")
@@ -125,13 +127,31 @@ class GPS:
             new_data = self.gpsd_socket.next()
             if new_data is not None:
                 data = json.loads(new_data)
-                self.logger.info("GPS new_data class %s", data["class"])
-                if data["class"] == "TPV":
+                thisClass=data["class"]
+                self.logger.info(f"GPS new_data class {thisClass}")
+                if thisClass == "TPV" and data["mode"] >1 :
                     self.lat = data["lat"]
                     self.lon = data["lon"]
                     self.timestamp = data["time"]
                     self.lastGpsReading = time()
+
+                # cache the sentence
+                data["lastGpsReading"] = time() # record when reading took place
+                self.sentences[thisClass]=data
+
             else:
                 self.logger.info("No new gps data")
         except Exception as e:
             self.logger.warning("update_gps() ignoring exception %s", e)
+
+    def getSentence(self,which):
+        """
+        Returns the cached GPSD sentence or None
+
+        This allows callers to access more than just the device lat/lon and time
+        """
+        try:
+            return self.sentences[which]
+        except Exception as e:
+            self.logger.info(f"attempt to retrieve sentence {which} which doesn't exist")
+            return None
