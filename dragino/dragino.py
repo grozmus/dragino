@@ -67,7 +67,7 @@ class Dragino(LoRa):
     """
     def __init__(
             self, config_filename,
-            logging_level=DEFAULT_LOG_LEVEL
+            logging_level=DEFAULT_LOG_LEVEL,noGPS=False
             ):
 
         self.logger = logging.getLogger("Dragino")
@@ -130,7 +130,10 @@ class Dragino(LoRa):
         self.txStart=None          # used to compute last airTime
         self.txEnd=None
 
-        self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
+        if noGPS:
+            self.GPS=None
+        else:
+            self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
 
         self.logger.info("__init__ done")
 
@@ -662,10 +665,15 @@ class Dragino(LoRa):
         self.send_bytes(list(map(ord, str(message))),port)
 
     def get_gps(self):
+        if self.GPS is None:
+            return None
         return self.GPS.get_gps()
 
     def get_corrected_timestamp(self):
+        if self.GPS is None:
+            return None
         return self.GPS.get_corrected_timestamp()
 
     def stop(self):
-        self.GPS.stop()
+        if self.GPS is not None:
+            self.GPS.stop()
