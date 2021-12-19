@@ -669,6 +669,14 @@ class Dragino(LoRa):
             return None
         return self.GPS.get_gps()
 
+    def get_gpsSentence(self,which):
+        """
+        returns a dictionary for the seleceted sentence
+        """
+        if self.GPS is None:
+            return None
+        return self.GPS.sentence[which]
+
     def get_corrected_timestamp(self):
         if self.GPS is None:
             return None
