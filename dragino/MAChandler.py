@@ -607,7 +607,7 @@ class MAC_commands(object):
   
         self.cache[FCNTDN]=FCnt
     
-        FOpts=macPayload.get_fhdr().fhdr.get_fopts()
+        FOpts=macPayload.get_fhdr().get_fopts()
         FPort=macPayload.get_fport()
         FRMpayload=macPayload.get_frm_payload()
         self.logger.debug(f"FCtrl={FCtrl} FCnt={FCnt} FOpts={FOpts} FoptsLen={FOptsLen} FPort={FPort} FRMpayload={FRMpayload}")
