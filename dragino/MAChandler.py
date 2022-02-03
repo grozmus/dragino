@@ -669,7 +669,7 @@ class MAC_commands(object):
         
         The server will send a LINK_CHECK_ANS.
         """
-        self.macReplies+=[MCMD.LINK_CHECK_REQ]
+        self.macReplies+=bytearray([MCMD.LINK_CHECK_REQ])
 
     def link_check_ans(self):
         """
@@ -707,7 +707,7 @@ class MAC_commands(object):
         self.cache[CH_MASK]=self.macCmds[self.macIndex+2] << 8 & self.macCmds[self.macIndex+3]
         self.cache[CH_MASK_CTL]=self.macCmds[self.macIndex+4] & 0x0e >> 4
         self.cache[NB_TRANS]=self.macCmds[self.macIndex+4] & 0x0F
-        self.macReplies+=[MCMD.LINK_ADR_REQ]
+        self.macReplies+=bytearray([MCMD.LINK_ADR_REQ])
         self.macIndex+=5
 
     def duty_cycle_req(self):
@@ -721,7 +721,7 @@ class MAC_commands(object):
 
         """
         self.cache[MAX_DUTY_CYCLE]=self.macCmds[self.macIndex+1] & 0x0F
-        self.macReplies+=[MCMD.DUTY_CYCLE_REQ]
+        self.macReplies+=bytearray([MCMD.DUTY_CYCLE_REQ])
         self.macIndex+=2
 
     def rx_param_setup_req(self):
@@ -761,7 +761,7 @@ class MAC_commands(object):
         # Channel ACK       0=unusable, 1 ok
         # RX2DataRateAck    0=unknown data rate, 1 ok
         # RX1DROffsetACK    0=not in allowed ranbge, 1 ok
-        self.macReplies+=[MCMD.RX_PARAM_SETUP_REQ,0x07]
+        self.macReplies+=bytearray([MCMD.RX_PARAM_SETUP_REQ,0x07])
         self.macIndex+=5
 
     def dev_status_req(self):
@@ -780,7 +780,7 @@ class MAC_commands(object):
 
         """
         self.logger.info(f"Dev Status Req - returns (0,{int(self.lastSNR)})")
-        self.macReplies+=[MCMD.DEV_STATUS_REQ,0,int(self.lastSNR)]
+        self.macReplies+=bytearray([MCMD.DEV_STATUS_REQ,0,int(self.lastSNR)])
         self.macIndex+=1
 
     def new_channel_req(self):
@@ -808,7 +808,7 @@ class MAC_commands(object):
         
         if not (minFreq<=newFreq<=maxFreq):
             self.logger.info(f"new freq {newFreq} not in range min {minFreq} - {maxFreq}")
-            self.macReplies+=[MCMD.NEW_CHANNEL_REQ,0x02]
+            self.macReplies+=bytearray([MCMD.NEW_CHANNEL_REQ,0x02])
   
         else:
             self.channelFrequencies[ChIndex] = newFreq
@@ -817,7 +817,7 @@ class MAC_commands(object):
             self.logger.info(f"NewChannelReq chIndex {ChIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
 
             # answer - assume all ok
-            self.macReplies+=[MCMD.NEW_CHANNEL_REQ,0x03]
+            self.macReplies+=bytearray([MCMD.NEW_CHANNEL_REQ,0x03])
         
         self.macIndex+=6
 
@@ -833,7 +833,7 @@ class MAC_commands(object):
 
         self.logger.info(f"rx timing setup RX1 delay={rx1_delay}")
         
-        self.macReplies+=[MCMD.RX_TIMING_SETUP_REQ]
+        self.macReplies+=bytearray([MCMD.RX_TIMING_SETUP_REQ])
         self.macIndex+=2
 
     def tx_param_setup_req(self, mac_payload):
@@ -855,7 +855,7 @@ class MAC_commands(object):
         
         self.logger.info(f"tx param setup DL dwell {dldt} UL dwell {uldt} maxEIRP {maxEirp}")
         
-        self.macReplies+=[MCMD.TX_PARAM_SETUP_REQ]
+        self.macReplies+=bytearray([MCMD.TX_PARAM_SETUP_REQ])
         self.macIndex += 2
 
     def dl_channel_req(self):
@@ -880,14 +880,14 @@ class MAC_commands(object):
 
         # answer - 
         # assume Uplink Frequency exists and channel freq ok
-        self.macReplies+=[MCMD.DL_CHANNEL_REQ,0x03]
+        self.macReplies+=bytearray([MCMD.DL_CHANNEL_REQ,0x03])
         self.macIndex += 5
 
     def time_req(self):
         """
         prompt the server for a TIME_ANS
         """
-        self.macReplies+=[MCMD.TIME_REQ]
+        self.macReplies+=bytearray([MCMD.TIME_REQ])
 
     def time_ans(self):
         """
