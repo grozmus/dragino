@@ -122,7 +122,7 @@ class MAC_commands(object):
         self.loadCache() # load any cached values
 
         # always reset these
-        self.macReplies=[]      # list of replies to MAC commands
+        self.macReplies=bytearray()      # list of replies to MAC commands
         self.macCmds=None       # list of MAC commands in downlink
         self.macIndex=0         # pointer to next MAC cmd in macCmds
 
@@ -560,10 +560,10 @@ class MAC_commands(object):
         """
         FOpts=self.macReplies # should this be reversed?
         FOptsLen=len(FOpts)
-        
+
         self.logger.info(f"check for FOpts to attach to uplink len={FOptsLen} FOpts={FOpts}")
 
-        self.macReplies=[] # clear them as we don't want to send with every messages
+        self.macReplies=bytearray() # clear them as we don't want to send with every messages
 
         if FOptsLen==0:
             self.logger.info("no FOpts")
@@ -614,7 +614,7 @@ class MAC_commands(object):
 
         # mac commands may contain several commands
         # all need replying to in the order sent
-        self.MACreplies=bytearray()
+        self.macReplies=bytearray()
 
         if FOptsLen==0 or (FPort is not None and FPort > 0):
             # no MAC commands
@@ -707,7 +707,7 @@ class MAC_commands(object):
         self.cache[CH_MASK]=self.macCmds[self.macIndex+2] << 8 & self.macCmds[self.macIndex+3]
         self.cache[CH_MASK_CTL]=self.macCmds[self.macIndex+4] & 0x0e >> 4
         self.cache[NB_TRANS]=self.macCmds[self.macIndex+4] & 0x0F
-        self.MACreplies+=[MCMD.LINK_ADR_REQ]
+        self.macReplies+=[MCMD.LINK_ADR_REQ]
         self.macIndex+=5
 
     def duty_cycle_req(self):
@@ -814,7 +814,7 @@ class MAC_commands(object):
             self.channelFrequencies[ChIndex] = newFreq
             self.channelDRRange[ChIndex] = (minDR,maxDR)
             
-            self.logger.info(f"NewChannelReq chIndex {chIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
+            self.logger.info(f"NewChannelReq chIndex {ChIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
 
             # answer - assume all ok
             self.macReplies+=[MCMD.NEW_CHANNEL_REQ,0x03]
