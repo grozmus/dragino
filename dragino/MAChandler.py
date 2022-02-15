@@ -610,33 +610,32 @@ class MAC_commands(object):
         FOpts=macPayload.get_fhdr().get_fopts()
         FPort=macPayload.get_fport()
         FRMpayload=macPayload.get_frm_payload()
-        self.logger.debug(f"FCtrl={FCtrl} FCnt={FCnt} FOpts={FOpts} FoptsLen={FOptsLen} FPort={FPort} FRMpayload={FRMpayload}")
+        self.logger.debug(f"FCtrl={FCtrl} FCnt={FCnt} FOpts={FOpts} FoptsLen={FOptsLen} FPort={FPort}")
 
         # mac commands may contain several commands
         # all need replying to in the order sent
         self.macReplies=bytearray()
 
-        if FOptsLen==0 or (FPort is not None and FPort > 0):
+        if FOptsLen==0:
             # no MAC commands
+            self.logger.debug("No FOpts to process")
             return
 
         # MAC commands can appear in FOpts field or FRMpayload but not both
-        self.macCmds=None
         
-        if FPort == 0:
+        #if FPort == 0:
             # MAC commands only and in FRMpayload
-            FOpts=FRMpayload
-        elif FPort>0 and FOptsLen>0:
+        #    self.logger.debug(f"MAC commands in FRMpayload")
+            #FOpts=FRMpayload
+        #else:
             # commands are in the FOpts field
-            self.macCmds=FOpts
-        else:
-            # no MAC commands
-            return
+        #    self.logger.debug(f"MAC commands in FOpts field {FOpts}")
+
 
         # process the MAC commands - there may be multiple commands
         # all may need answering
 
-        self.processFOpts(FOpts)
+        self.processFopts(FOpts)
 
     def processFopts(self,FOpts):
         """
@@ -645,6 +644,7 @@ class MAC_commands(object):
         :param FOpts: array of MAC commands
         
         """
+        self.logger.info(f"handling downlink FOpts {FOpts}")
         self.macIndex=0
         self.macCmds=FOpts
         
