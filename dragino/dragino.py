@@ -253,16 +253,16 @@ class Dragino(LoRa):
         # self.MAC.handleCFlist(cflist)
             
         devaddr=lorawan.get_devaddr()
-        newskey=lorawan.derive_nwskey(self.devnonce)
+        nwkskey=lorawan.derive_nwskey(self.devnonce)
         appskey=lorawan.derive_appskey(self.devnonce)
                 
 
         self.MAC.setDevAddr(devaddr)
-        self.MAC.setNewSKey(newskey)
+        self.MAC.setNwkSKey(nwkskey)
         self.MAC.setAppSKey(appskey)
 
         self.logger.debug(f"devaddr: {devaddr}")
-        self.logger.debug(f"newskey: {newskey}")
+        self.logger.debug(f"nwkskey: {nwkskey}")
         self.logger.debug(f"appskey: {appskey}")
                 
         self.MAC.setFCntUp(1)
@@ -308,10 +308,10 @@ class Dragino(LoRa):
                     
             # looks like a proper downlink with data sent to me
             # so lets try to understand it
-            newskey=self.MAC.getNewSKey()
+            nwkskey=self.MAC.getNwkSKey()
             appskey=self.MAC.getAppSKey()
 
-            lorawan = lorawan_msg(newskey,appskey)
+            lorawan = lorawan_msg(nwkskey,appskey)
             lorawan.read(rawPayload)
 
             decodedPayload=lorawan.get_payload() # must call before valid_mic()
@@ -593,9 +593,9 @@ class Dragino(LoRa):
               
             self.configureRadio(radioSettings.SEND)
 
-            newskey=self.MAC.getNewSKey()
+            nwkskey=self.MAC.getNwkSKey()
             appskey=self.MAC.getAppSKey()
-            lorawan = lorawan_msg(newskey,appskey)
+            lorawan = lorawan_msg(nwkskey,appskey)
             
             try:
 
@@ -665,8 +665,8 @@ class Dragino(LoRa):
             is already a byte array
         """
         attempt = 0
-        if self.MAC.getNewSKey() is None or self.MAC.getAppSKey() is None:
-            self.logger.error("no newSKey or AppSKey")
+        if self.MAC.getNwkSKey() is None or self.MAC.getAppSKey() is None:
+            self.logger.error("no nwkSKey or AppSKey")
             return
 
         self._sendPacket(message,port)

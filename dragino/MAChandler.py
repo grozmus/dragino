@@ -178,11 +178,11 @@ class MAC_commands(object):
         self.cache[DEVADDR]=DevAddr
         self.saveCache()
         
-    def getNewSKey(self):
-        return self.cache[NEWSKEY]
+    def getNwkSKey(self):
+        return self.cache[NWKSKEY]
 
-    def setNewSKey(self,key):
-        self.cache[NEWSKEY]=key
+    def setNwkSKey(self,key):
+        self.cache[NWKSKEY]=key
         self.saveCache()
         
     def getAppSKey(self):
@@ -465,16 +465,16 @@ class MAC_commands(object):
         self.cache[DEVEUI]=self.config[TTN][auth_mode][DEVEUI]
                     
         if self.config[TTN][AUTH_MODE]==OTAA:
-            # NEWSKEY and APPSKEY are set after joining
+            # NWKSKEY and APPSKEY are set after joining
             self.cache[DEVADDR]=bytearray([0x00,0x00,0x00,0x00])
             self.cache[APPSKEY]=bytearray()
-            self.cache[NEWSKEY]=bytearray()
+            self.cache[NWKSKEY]=bytearray()
 
         else:
             # ABP settings
             self.cache[DEVADDR]=self.config[TTN][ABP][DEVADDR]
             self.cache[APPSKEY]=self.config[TTN][ABP][APPSKEY]
-            self.cache[NEWSKEY]=self.config[TTN][ABP][NEWSKEY]
+            self.cache[NWKSKEY]=self.config[TTN][ABP][NWKSKEY]
 
         # frame counts - will be reset on OTAA joining
         self.cache[FCNTUP]=self.config[TTN][FCNTUP]
