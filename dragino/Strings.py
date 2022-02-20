@@ -44,7 +44,8 @@ MAX_DUTY_CYCLE="max_duty_cycle"
 SF_RANGE="sf_range"
 DEVADDR="devaddr"
 DEVEUI="deveui"
-NEWSKEY="newskey"
+#NEWSKEY="newskey" spelling error
+NWKSKEY="nwkskey"
 APPSKEY="appskey"
 APPEUI="appeui"
 APPKEY="appkey"
@@ -89,4 +90,4 @@ MAC_SETTINGS=[
             ]
 
 #TTN keys
-KEY_SETTINGS=[DEVADDR,DEVEUI,NEWSKEY,APPSKEY,APPEUI,APPKEY]
+KEY_SETTINGS=[DEVADDR,DEVEUI,NWKSKEY,APPSKEY,APPEUI,APPKEY]
