@@ -21,8 +21,12 @@ class FHDR:
         
         # for downlinks fctrl=[ADR:7,RFU:6,ACK:5,FPending:4,FOptsLen:3-0]
         # for uplinks   fctrl=[ADR:7,ADRACKREQ:6,ACK:5,CLASS_B:4,FOptslen:3-0]
-        
-        self.fctrl = 0x00 
+
+        if 'fctrl' in args:
+            self.fctrl=args['fctrl']
+        else:
+            self.fctrl = 0x00
+
         if 'fcnt' in args:
             self.fcnt = args['fcnt'].to_bytes(2, byteorder='little')
         else:
