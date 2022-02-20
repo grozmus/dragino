@@ -669,6 +669,7 @@ class MAC_commands(object):
         
         The server will send a LINK_CHECK_ANS.
         """
+        self.logger.debug("LINK_CHECK_REQ")
         self.macReplies+=bytearray([MCMD.LINK_CHECK_REQ])
 
     def link_check_ans(self):
@@ -682,7 +683,7 @@ class MAC_commands(object):
         
         no response needed
         """
-        
+        self.logger.debug("LINK_CHECK_ANS")
         # values can be retrieved with getLinkCheckStatus()
         self.gw_margin=min(self.gw_margin,self.macCmds[self.macIndex+1])
         self.gw_cnt=max(self.gw_cnt,self.macCmds[self.macIndex+2])
@@ -702,6 +703,7 @@ class MAC_commands(object):
 
         return status byte: RFU:7..3, PowerAck:2, DRAck: 1, ChMaskAck:0
         """
+        self.logger.debug("LINK_ADR_REQ")
         self.cache[RX1_DR]=self.macCmds[self.macIndex+1] & 0xF0 >> 4
         self.cache[OUTPUT_POWER]=self.macCmds[self.macIndex+1] & 0x0F
         self.cache[CH_MASK]=self.macCmds[self.macIndex+2] << 8 & self.macCmds[self.macIndex+3]
@@ -720,6 +722,7 @@ class MAC_commands(object):
         section of the config file
 
         """
+        self.logger.debug("DUTY_CYCLE_REQ")
         self.cache[MAX_DUTY_CYCLE]=self.macCmds[self.macIndex+1] & 0x0F
         self.macReplies+=bytearray([MCMD.DUTY_CYCLE_REQ])
         self.macIndex+=2
@@ -735,6 +738,8 @@ class MAC_commands(object):
         reply is 1 byte with bit encoding
         RFU:7..3,RX1DROffsetAck:2, RX2DataRateACK:2,ChannelACK:0
         """
+        self.logger.debug("RX_PARAM_SETUP_REQ")
+
         DLSettings=self.macCmds[self.macIndex+1]
 
         # TODO only if all are valid otherwise no change
@@ -779,7 +784,7 @@ class MAC_commands(object):
         bits 5..0 SNR 6 bit signed int
 
         """
-        self.logger.info(f"Dev Status Req - returns (0,{int(self.lastSNR)})")
+        self.logger.info(f"DEV_STATUS_REQ - returns (0,{int(self.lastSNR)})")
         self.macReplies+=bytearray([MCMD.DEV_STATUS_REQ,0,int(self.lastSNR)])
         self.macIndex+=1
 
@@ -793,6 +798,8 @@ class MAC_commands(object):
 
         reply 1 byte encoded RFU:7..2, DataRateOk: 1, ChannelFreqOk 0
         """
+        self.logger.debug("NEW_CHANNEL_REQ")
+
         ChIndex = self.macCmds[self.macIndex+1]
         newFreq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+5])
         
@@ -803,7 +810,7 @@ class MAC_commands(object):
         
         # TODO - check newFreq is possible first
         # needs to know region parameters
-        minFreq=min(self.ChannelFrequencies)
+        minFreq=min(self.channelFrequencies)
         maxFreq=max(self.channelFrequencies)
         
         if not (minFreq<=newFreq<=maxFreq):
@@ -825,6 +832,8 @@ class MAC_commands(object):
         """
         payload is 1 byte RX1 delay encoded in bits3..0
         """
+        self.logger.debug("RX_TIMING_SETUP_REQ")
+
         rx1_delay=self.macCmds[self.macIndex+1] & 0x0f # seconds
         if rx1_delay == 0:
             rx1_delay = 1
@@ -845,6 +854,7 @@ class MAC_commands(object):
         
         Currently the values are stored and acknowledged but not used
         """
+        self.logger.debug("TX_PARAM_SETUP_REQ")
         dldt=self.macCmds[self.macIndex+1] & 0x20 >> 5
         uldt=self.macCmds[self.macIndex+1] & 0x10 >> 4
         maxEirp=self.macCmds[self.macIndex+1] & 0x0F
@@ -869,6 +879,7 @@ class MAC_commands(object):
         [RFU 7:2][Uplink Freq Exists 1][channel freq ok 0]
 
         """
+        self.logger.debug("DL_CHANNEL_REQ")
         ChIndex = self.macCmds[self.macIndex+1]
         newFreq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+5])
         self.channelFrequencies[ChIndex] = newFreq
@@ -887,6 +898,7 @@ class MAC_commands(object):
         """
         prompt the server for a TIME_ANS
         """
+        self.logger.debug("TIME_REQ")
         self.macReplies+=bytearray([MCMD.TIME_REQ])
 
     def time_ans(self):
@@ -903,6 +915,7 @@ class MAC_commands(object):
         Received as a Class A downlink
 
         """
+        self.logger.debug("TIME_ANS")
         seconds=self.macCmds[self.macIndex+1:self.macIndex+5]
         fraction=self.macCmds[self.macIndex+5] / 256
 
