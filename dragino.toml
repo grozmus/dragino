@@ -1,6 +1,18 @@
 # dragino.toml
-# initial configuration replacement for dragino.ini
-# see cache.json for dynamically changing values and TTN keys
+#
+# The [TTN] section here contains only default starting values/keys for which are used to create cache.json, if it doesn't exist,
+# when the code first runs.
+#
+# After joining TTN, cache.json is updated with the TTN supplied devaddr and keys etc.
+#
+#
+# if auth_mode="OTAA":-
+# If cache.json does not exist the code will try to send a JOIN_REQUEST only if devaddr = [0x00, 0x00,x00,x00]
+# However, if cache.json exists the code will use the values therein and not try to send a JOIN_REQUEST
+#
+# if auth_mode="ABP":-
+# you must provide all the TTN keys etc in the [TTN.ABP] section
+
 
 [GPSD]
 	threaded=true		# non-blocking operation get_gps() will return last cached valid reading
@@ -68,7 +80,7 @@
 	[TTN.ABP]
 		# enter your device ABP key values below
 		devaddr = [0x00,0x00,0x00,0x00]
-		newskey = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
+		nwskey = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 		appskey = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 		appkey = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 		appeui = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00] 
