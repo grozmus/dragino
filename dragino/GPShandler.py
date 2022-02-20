@@ -149,7 +149,7 @@ class GPS:
                         self.lat = data["lat"]
                         self.lon = data["lon"]
                         self.timestamp = data["time"]
-                        print(f"Got lat {self.lat} lon {self.lon}") 
+                        #print(f"Got lat {self.lat} lon {self.lon}") 
                         self.lastGpsReading = time()
                     except KeyError as e:
                         self.logger.exception(f"unable to extract TPV data missing key error: {e}")
