@@ -52,6 +52,10 @@ class GPS:
   
             self.gpsThread.start()
 
+
+        # sentences are cached here with a timestamp (for time correction)
+        self.gps_cache={}
+
     def __del__(self):
         if self.isThreaded:
             self.logger.info("Stopping the background thread")
@@ -101,7 +105,28 @@ class GPS:
                 break
             sleep(0.1)
 
- 
+    def getSentences(self):
+        """
+        Returns a list of cached sentences
+        """
+        return self.gpc_cache.keys()
+
+
+    def getSentence(self,which):
+        """
+        getSentence
+
+        Caller MUST know which sentence they want but it may not have been
+        seen and cached when asked for.
+
+        which:  String like 'TPV', 'SKY' etc case insensitive
+        return: None or the requested GPS sentence (a dictionary)
+        """
+        which=which.toupper()
+        if which in self.gps_cache:
+            return self.gps_cache[which]
+        return None
+
     def _updater(self):
         """
         GPS updater thread, samples GPS typically every 0.5 seconds
@@ -137,7 +162,14 @@ class GPS:
                 data = json.loads(new_data)
                 if VERBOSE:
                     self.logger.info("GPS new_data class %s", data["class"])
-    
+
+                # cache all GPS messages with a reading timestamp
+                # the reading timestamp allows correction to GPS timestamp
+                # since the sentence may have been seen some time before used
+                data["lastReadingTime"]=time()
+                self.gps_cache[data["class"]]=data
+
+                # what follows will be deprecated
                 if data["class"] == "TPV":
                     #print("TPV data",data)
                     if data["mode"]==0 or data["mode"]==1:
@@ -169,10 +201,22 @@ if __name__=="__main__":
     
     gps=GPS()
 
+
+    nofix=True
     start=time()
     
+    try:
+        start=time()
+        while True:
+
+            TPV=gps.getSentence("TPV")
+            if TPV is not None:
+                if nofix:
+                    print("Got fix after",time()-start)
+                    nofix=False
+                    print("TPV:",TPV)
+
+            sleep(5)
     
-    while True:
-        if time()-start>20:
-            break
-    
+    except KeyboardInterrupt:
+        exit("cancelled")
