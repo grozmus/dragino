@@ -1,2 +1,4 @@
 *.pyc
+.idea
 dragino.ini
+.idea/.name
