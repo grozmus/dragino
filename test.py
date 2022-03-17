@@ -21,7 +21,7 @@ D = Dragino("dragino.toml", logging_level=logLevel)
 D.join()
 
 print("Waiting for JOIN ACCEPT")
-while not D.registered():
+while not D.registered:
     print(".",end="")
     sleep(2)
 print("\nJoined")
