@@ -103,3 +103,13 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
 
 ## Additional Chip Select Details
 For some reason the Dragino board does not use one of the standard chip select lines for the SPI communication.  This can be overcome by using a device tree overlay to configure addtional SPI CS lines.  I am not a device tree expert so I adapted the example given at https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=157994 to provide the code needed for this to work.  
+
+# GPSD #
+If you are having problems with gpsd on the pi here's a few things to check.
+
+Firstly, use cgps - it should show data coming from the GPS device. If not it may mean that gpsd hasn't identified the serial port being used. The port is /dev/ttyAMA0 which is owned by root and group is dialout. This port is setup by the RPi when you boot it up.
+
+Secondly, I had to edit /etc/default/gpsd and ensure it has the line DEVICES=/dev/ttyAMA0 in it.
+
+## Speculation follows ##
+Quite possibly this is caused by a race condition when the Pi boots up. A similar thing happens on inserting a USB stick - it takes several seconds for the device to be mounted. So, if the Pi is booting and gpsd starts before /dev/ttyAMA0 has been created gpsd won't find it. Possibly the gpsd.service file could include a conditional clause to wait for /dev/ttyAMA0 to exist before proceeding. But hey, adding the device to the defaults file works.
