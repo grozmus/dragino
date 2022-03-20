@@ -67,7 +67,8 @@ class Dragino(LoRa):
     """
     def __init__(
             self, config_filename,
-            logging_level=DEFAULT_LOG_LEVEL
+            logging_level=DEFAULT_LOG_LEVEL,
+			enableGPS=False	
             ):
 
         self.confirmWithNextUplink=False # for confirmed data down
@@ -89,9 +90,12 @@ class Dragino(LoRa):
         self.MAC=MAC_commands(self.config,logging_level)    # loads cached MAC info (if any) otherwise config values
         
         # setup GPS
-        print("Setting up GPS")
-        self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
-            
+        if enableGPS:
+            self.logger.info("enabling GPS")
+            self.GPS=GPS(logging_level,self.config[GPSD]["threaded"],self.config[GPSD]["threadLoopDelay"])
+        else:
+            self.logger.warning("Not enabling GPS (see enableGPS param)")
+            self.GPS=None
 
         try:
             """
@@ -679,10 +683,17 @@ class Dragino(LoRa):
         self.send_bytes(list(map(ord, str(message))),port)
 
     def get_gps(self):
+		if self.GPS is None:
+			self.logger.warning("GPS is disabled")
+			return None
         return self.GPS.get_gps()
         
     def get_corrected_timestamp(self):
+		if self.GPS is None:
+			self.logger.warning("GPS is disabled")
+			return None
         return self.GPS.get_corrected_timestamp()
 
     def stop(self):
-        self.GPS.stop()
+		if self.GPS:
+			self.GPS.stop()
