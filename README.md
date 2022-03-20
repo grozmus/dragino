@@ -45,7 +45,10 @@ while True:
 
 # TTN Fair Use
 
-TTN Fair Use limits you to a max of 30 seconds airtime in any 24 hour period. There are a number of ways to do that and I'll leave it to your imagination.
+TTN Fair Use limits you to a max of 30 seconds airtime in any 24 hour period though, according to Descartes "
+concensus on the forum is that a downlink per fortnight is good design". 
+
+There are a number of ways to do that and I'll leave it to your imagination.
 
 
 # Downlink Messages
@@ -59,8 +62,7 @@ Be aware that your downlink handler is called during an interrupt and should not
 I recommend you push the information onto a queue and deal with the queue in a separate thread. Having said that you
 are unlikely to experience a flood of downlinks. There is a recommended max of 10 per day with TTN.
 
-The TTN servers only send downlinks after an uplink - I assume that is so TTN doesn't send messages to someone who
-isn't listening.
+The TTN servers only send downlinks after an uplink in accordance with the LoRaWAN spec.
 
 See https://www.thethingsnetwork.org/docs/lorawan/classes/ for a complete description of LoRaWAN device classes.
 
