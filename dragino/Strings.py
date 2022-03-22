@@ -18,7 +18,6 @@ CLASS_C="C"
 GPSD="GPSD"
 
 DEVICE_CLASS="device_class"
-DATA_RATE="data_rate"
 FCNTUP="fCntUp"
 FCNTDN="fCntDn"
 RX1_DELAY="rx1_delay"
@@ -35,7 +34,13 @@ RX1_FREQ_FIXED="rx1_freq_fixed"
 
 RX2_FREQUENCY="rx2_frequency"
 FREQUENCY_PLAN="frequency_plan"
-CHANNEL_FREQUENCIES="channelFrequencies"
+
+#mapped to LORA_xxx_FREQS
+CHANNEL_JOIN_FREQS="channelJoinFrequencies"
+CHANNEL_TX_FREQS="channelTxFrequencies"
+CHANNEL_RX1_FREQS="channelRX1Frequencies"
+
+
 DUTY_CYCLE="duty_cycle"
 DUTY_CYCLE_RANGE="duty_cycle_range"
 DUTY_CYCLE_TABLE="duty_cycle_table"
@@ -66,8 +71,9 @@ DATA_RATE="data_rate"
 ADR_DATA_RATE="ADR_data_rate"
 BANDWIDTHS="bandwidths"
 MAX_CHANNELS="max_channels"
-JOIN_FREQS="join_freqs"
-LORA_FREQS="lora_freqs"
+LORA_JOIN_FREQS="lora_join_freqs"
+LORA_TX_FREQS="lora_tx_freqs"
+LORA_RX1_FREQS="lora_rx1_freqs"
 
 DOWNLINK_DWELL_TIME="downlink_dwell_time"
 UPLINK_DWELL_TIME="uplink_dwell_time"
@@ -86,7 +92,7 @@ JOIN_RETRIES="join_retries"
 # MAC settings which can be changed by a downlink msg containing MAC commands
 MAC_SETTINGS=[
             FCNTUP,FCNTDN,RX1_DELAY,RX2_DELAY,RX1_DR, RX2_DR,RX1_FREQ_FIXED,
-            RX1_FREQUENCY,RX2_FREQUENCY,DUTY_CYCLE,LORA_FREQS,DATA_RATE
+            RX1_FREQUENCY,RX2_FREQUENCY,DUTY_CYCLE,DATA_RATE
             ]
 
 #TTN keys

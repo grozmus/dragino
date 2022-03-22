@@ -92,7 +92,9 @@ class MAC_commands(object):
         self.frequency_plan=self.config[TTN][FREQUENCY_PLAN]
         self.lastSNR=0
         self.setCacheDefaults()
-        self.lastSendSettings=(None,None,None)
+        #self.lastSendSettings=(None,None,None) deprecated
+
+        self.currentChannel=None  # changes with each transmission
 
         # initialise values from user config file
         # this gives the code a starting point on first run
@@ -217,13 +219,15 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        freq=random.choice(self.channelFrequencies[0:3])
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_JOIN_FREQUENCIES]))
+
+        freq=self.cache[CHANNEL_JOIN_FREQUENCIES][self.currentChannel]
+
         self.cache[MAX_DUTY_CYCLE]=self.getMaxDutyCycle(freq)
         
         sf,bw=self.config[self.frequency_plan][DATA_RATES][self.cache[DATA_RATE]]
 
-        self.lastSendSettings=(freq,sf,bw)
-        self.logger.debug(f"using join settings freq {freq} sf {sf} bw {bw}")
+        self.logger.debug(f"using join settings: freq {freq} sf {sf} bw {bw}")
         return freq,sf,bw
 
     def getDataRate(self):
@@ -237,7 +241,7 @@ class MAC_commands(object):
         
     def getSendSettings(self):
         """
-        randomly choose a frequency
+        randomly choose a frequency (channel)
         
         once joined all frequencies are available for use
         
@@ -245,44 +249,35 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        max_channel=self.config[self.frequency_plan][MAX_CHANNELS]
-        
-        freq=random.choice(self.channelFrequencies[:max_channel])
-        
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_TX_FREQUENCIES]))
+
+        freq=self.cache[CHANNEL_TX_FREQUENCIES][self.currentChannel]
         self.cache[MAX_DUTY_CYCLE]=self.getMaxDutyCycle(freq)
           
         sf,bw=self.config[self.frequency_plan][DATA_RATES][self.cache[DATA_RATE]]
-        self.lastSendSettings=(freq,sf,bw)
         
-        self.logger.debug(f"using send settings freq {freq} sf {sf} bw {bw}")
+        self.logger.debug(f"using send settings: freq {freq} sf {sf} bw {bw}")
         return freq,sf,bw
-        
+
     def getRX1Settings(self):
         """
-        RX1 is normally the same as last send settings unless
-        the RX1_DR_OFFSET is not zero
-        
-        frequency is not changed
-        
+        RX1 frequency varies with frequency plan
+
         :return (freq,sf,bw)
         """
 
-        if self.cache[RX1_DR]==self.cache[DATA_RATE]:
-            self.logger.debug(f"using last send settings for RX1")
-            return self.lastSendSettings
-        
-        # RX1 data rate is different but frequency is normally the same
-        freq=self.lastSendSettings[0]   # we only want the frequency
- 
-        # frequency may have been fixed by MAC command
+        # RX1 frequency may have been fixed by MAC command
         if self.cache[RX1_FREQ_FIXED]:
-            freq=self.cache[RX1_FREQUENCY]
- 
-        sf,bw=self.config[self.frequency_plan][DATA_RATES][self.cache[RX1_DR]]
-        
-        self.logger.debug(f"rx1 settings freq {freq} sf {sf} bw {bw}")
-                
-        return freq,sf,bw
+            freq = self.cache[RX1_FREQUENCY]
+            self.logger.debug(f"RX1 frequency has been fixed to {freq}")
+        else:
+            freq = self.cache[CHANNEL_RX1_FREQUENCIES][self.currentChannel]
+
+        sf, bw = self.config[self.frequency_plan][DATA_RATES][self.cache[RX1_DR]]
+
+        self.logger.debug(f"RX1 settings : freq {freq} sf {sf} bw {bw}")
+
+        return freq, sf, bw
 
     def getRX2Settings(self):
         """
@@ -301,11 +296,9 @@ class MAC_commands(object):
         """
         return the max duty cycle for a given frequency
         """
-        if freq is None:
-            freq,sf,bw=self.getLastSendSettings()
-            if freq is None:
-                freq=self.channelFrequencies[0] #
-                self.logger.error(f"Nothing has been transmitted using max duty cycle for {freq} instead")
+        if (self.currentChannel is None) or (freq is None):
+            freq=self.cache[CHANNEL_TX_FREQUENCIES][0] #
+            self.logger.error(f"Nothing has been transmitted. Using max duty cycle for {freq} instead")
                 
         DC_table=self.config[self.frequency_plan][DUTY_CYCLE_TABLE]
         for (minFreq,maxFreq,dc) in DC_table:
@@ -352,15 +345,17 @@ class MAC_commands(object):
             self.logger.info(f"Frequency Plan is {self.frequency_plan}")
 
             self.channelDRRange = [(0, 7)] * self.config[self.frequency_plan][MAX_CHANNELS]
-            self.channelFrequencies=self.config[self.frequency_plan][LORA_FREQS]
-
+            #self.channelFrequencies=self.config[self.frequency_plan][LORA_FREQS]
+            self.cache[CHANNEL_JOIN_FREQUENCIES]=self.config[self.frequency_plan][LORA_JOIN_FREQS]
+            self.cache[CHANNEL_TX_FREQUENCIES] = self.config[self.frequency_plan][LORA_TX_FREQS]
+            self.cache[CHANNEL_RX1_FREQUENCIES] = self.config[self.frequency_plan][LORA_RX1_FREQS]
             self.newChannelIndex=0
             
             self.logger.info("Frequency Plan loaded ok")
 
         except Exception as e:
             
-            self.logger.error(f"error loading frequency plan. Check if it exists in the config.toml. {e}")
+            self.logger.error(f"error loading frequency plan. Check if it exists in the config toml file. {e}")
 
     def setDLsettings(self,settings):
         """ 
@@ -418,7 +413,9 @@ class MAC_commands(object):
         self.logger.info("Setting default MAC values using user config values")
         
         self.cache[DATA_RATE]=self.config[TTN][DATA_RATE]
-        self.cache[CHANNEL_FREQUENCIES] = self.config[self.frequency_plan][LORA_FREQS]
+        self.cache[CHANNEL_JOIN_FREQUENCIES] = self.config[self.frequency_plan][LORA_JOIN_FREQS]
+        self.cache[CHANNEL_TX_FREQUENCIES] = self.config[self.frequency_plan][LORA_TX_FREQS]
+        self.cache[CHANNEL_RX1_FREQUENCIES] = self.config[self.frequency_plan][LORA_RX1_FREQS]
         self.cache[OUTPUT_POWER]=self.config[TTN][OUTPUT_POWER]
         self.cache[MAX_POWER]=self.config[TTN][MAX_POWER]
                 
@@ -436,7 +433,7 @@ class MAC_commands(object):
         
 
         # link ADR req
-        #for a in [CH_MASK,CH_MASK_CTL,NB_TRANS]:
+        # for a in [CH_MASK,CH_MASK_CTL,NB_TRANS]:
         #    self.cache[a]=0
 
         # Duty Cycle req - percentage airtime allowed
@@ -447,9 +444,8 @@ class MAC_commands(object):
         # RXParamSetup
         self.cache[RX1_DR]=self.config[TTN][RX1_DR]
         self.cache[RX2_DR]=self.config[TTN][RX2_DR]
-        
 
-        # TX and RX1 frequencies change, RX2 is constant
+        # TX and RX1 frequencies change, RX2 is constant (in UK)
         # RX1 frequency can be set by MAC
         self.cache[RX1_FREQ_FIXED]=False
         self.cache[RX2_FREQUENCY]=self.config[TTN][RX2_FREQUENCY]
@@ -755,7 +751,7 @@ class MAC_commands(object):
             
         freq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+4])
         
-        if freq in self.lora_freqs:
+        if freq in self.cache[CHANNEL_RX1_FREQUENCIES][self.currentChannel]:
             reply=reply or 0x04
             
         if reply==0x07:
@@ -800,7 +796,7 @@ class MAC_commands(object):
         """
         self.logger.debug("NEW_CHANNEL_REQ")
 
-        ChIndex = self.macCmds[self.macIndex+1]
+        chIndex = self.macCmds[self.macIndex+1]
         newFreq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+5])
         
         DRRange = self.macCmds[self.macIndex+5] # uplink data rate range (max,min)
@@ -810,18 +806,21 @@ class MAC_commands(object):
         
         # TODO - check newFreq is possible first
         # needs to know region parameters
-        minFreq=min(self.channelFrequencies)
-        maxFreq=max(self.channelFrequencies)
-        
+        #minFreq=min(self.channelFrequencies)
+        #maxFreq=max(self.channelFrequencies)
+        minFreq=min(self.cache[CHANNEL_TX_FREQUENCIES])
+        maxFreq=max(self.cache[CHANNEL_TX_FREQUENCIES])
+
         if not (minFreq<=newFreq<=maxFreq):
             self.logger.info(f"new freq {newFreq} not in range min {minFreq} - {maxFreq}")
             self.macReplies+=bytearray([MCMD.NEW_CHANNEL_REQ,0x02])
   
         else:
-            self.channelFrequencies[ChIndex] = newFreq
-            self.channelDRRange[ChIndex] = (minDR,maxDR)
+            #self.channelFrequencies[ChIndex] = newFreq
+            self.cache[CHANNEL_TX_FREQUENCIES][chIndex]=newFreq
+            self.channelDRRange[chIndex] = (minDR,maxDR)
             
-            self.logger.info(f"NewChannelReq chIndex {ChIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
+            self.logger.info(f"NewChannelReq chIndex {chIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
 
             # answer - assume all ok
             self.macReplies+=bytearray([MCMD.NEW_CHANNEL_REQ,0x03])
@@ -880,14 +879,14 @@ class MAC_commands(object):
 
         """
         self.logger.debug("DL_CHANNEL_REQ")
-        ChIndex = self.macCmds[self.macIndex+1]
-        newFreq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+5])
-        self.channelFrequencies[ChIndex] = newFreq
-
+        chIndex = self.macCmds[self.macIndex+1]
+        newFreq =self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+5])
+        #self.channelFrequencies[ChIndex] = newFreq
+        self.cache[CHANNEL_RX1_FREQS][chIndex]=newFreq
         self.cache[RX1_FREQ_FIXED]=True
         self.cache[RX1_FREQUENCY]=newFreq
 
-        self.logger.info(f"DL channel req ChIndex {ChIndex} newFreq {newFreq}")
+        self.logger.info(f"DL channel req ChIndex {chIndex} newFreq {newFreq}")
 
         # answer - 
         # assume Uplink Frequency exists and channel freq ok
