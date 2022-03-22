@@ -60,10 +60,17 @@ class DataPayload:
         s = cipher.encrypt(bytes(a))
 
         padded_payload = bytearray()
-        padding=[0x00] * 16
+        padding=bytearray([0x00] * 16)
+        
+        if type(self.payload) is list:
+            payload=bytearray(self.payload)
+        else:
+            payload=self.payload
+        
+        
         for i in range(k):
             idx = (i + 1) * 16
-            padded_payload += (self.payload[idx - 16:idx] + padding)[:16]
+            padded_payload += (payload[idx - 16:idx] + padding)[:16]
 
         payload = []
         for i in range(len(self.payload)):
@@ -87,6 +94,9 @@ class DataPayload:
 
         cipher = AES.new(bytes(key))
         s = cipher.encrypt(bytes(a))
+        
+        if type(data) is list:
+            data=bytearray(data)
 
         padded_payload = bytearray()
         padding=bytearray([0x00]*16)
