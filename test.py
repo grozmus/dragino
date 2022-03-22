@@ -21,7 +21,7 @@ D = Dragino("dragino.toml", logging_level=logLevel)
 D.join()
 
 print("Waiting for JOIN ACCEPT")
-while not D.registered:
+while not D.registered():
     print(".",end="")
     sleep(2)
 print("\nJoined")
@@ -29,6 +29,6 @@ print("\nJoined")
 for i in range(0, 5):
     D.send("Hello World")
     print("Sent Hello World message")
-    while D.transmitting():
+    while D.transmitting:
         sleep(0.1)
     sleep(99*D.lastAirTime()) # limit to 1% duty cycle
