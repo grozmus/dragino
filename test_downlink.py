@@ -16,6 +16,9 @@ import RPi.GPIO as GPIO
 from dragino import Dragino
 from dragino.LoRaWAN.MHDR import *
 
+print("You need to schedule a downlink on the TTN console before continuing")
+x=input("When ready press any key")
+
 GPIO.setwarnings(False)
 
 logLevel=logging.DEBUG
