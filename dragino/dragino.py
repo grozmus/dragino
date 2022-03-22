@@ -34,7 +34,6 @@ from .Strings import *
 import threading
 from .GPShandler import GPS
 
-
 # Dragino.py is called from classes in the
 # parent directory. It helps to add that to the system path
 import os
@@ -199,6 +198,7 @@ class Dragino(LoRa):
         # set by on_rx_done() when a valid message
         # has been received during RX1 or RX2
         if self.validMsgRecvd:
+            self.logger.info("Message was received in RX1 already.")
             return
             
         self.configureRadio(radioSettings.RX2)
@@ -317,7 +317,7 @@ class Dragino(LoRa):
 
             lorawan = lorawan_msg(nwkskey,appskey)
             lorawan.read(rawPayload)
-
+            
             decodedPayload=lorawan.get_payload() # must call before valid_mic()
             lorawan.valid_mic()
 
@@ -326,7 +326,7 @@ class Dragino(LoRa):
             self.MAC.setLastSNR(self.get_pkt_snr_value()) # used for MAC status reply
                 
             if self.downlinkCallback is not None:
-                self.downlinkCallback(decodedPayload,mtype)
+                self.downlinkCallback(decodedPayload,mtype,lorawan.get_mac_payload().get_fport())
              
             # finally process any MAC commands
             self.MAC.handleCommand(lorawan.get_mac_payload())
@@ -428,7 +428,10 @@ class Dragino(LoRa):
         
         # set a timer ready to switch to RX2 after rx1_delay + rx_window (normally 1 second)
         # this may not be accurate and delay may need to be slightly smaller
-        t1=threading.Timer(self.MAC.getRX1Delay()+self.config[TTN][RX_WINDOW],function=self.switchToRX2)
+        delay=self.MAC.getRX1Delay()+self.config[TTN][RX_WINDOW]
+        self.logger.info("setting timer delay {delay} to switch to RX2")
+
+        t1=threading.Timer(delay,function=self.switchToRX2)
         
         # check if retries have expired
         # this will be the case for a normal packet send after joining
@@ -683,17 +686,17 @@ class Dragino(LoRa):
         self.send_bytes(list(map(ord, str(message))),port)
 
     def get_gps(self):
-		if self.GPS is None:
-			self.logger.warning("GPS is disabled")
-			return None
+        if self.GPS is None:
+            self.logger.warning("GPS is disabled")
+            return None
         return self.GPS.get_gps()
         
     def get_corrected_timestamp(self):
-		if self.GPS is None:
-			self.logger.warning("GPS is disabled")
-			return None
+        if self.GPS is None:
+            self.logger.warning("GPS is disabled")
+            return None
         return self.GPS.get_corrected_timestamp()
 
     def stop(self):
-		if self.GPS:
-			self.GPS.stop()
+        if self.GPS:
+            self.GPS.stop()
