@@ -92,14 +92,12 @@ class MAC_commands(object):
         self.frequency_plan=self.config[TTN][FREQUENCY_PLAN]
         self.lastSNR=0
         self.setCacheDefaults()
-        #self.lastSendSettings=(None,None,None) deprecated
 
         self.currentChannel=None  # changes with each transmission
 
         # initialise values from user config file
         # this gives the code a starting point on first run
 
-        self.cache={}
                 
         for k in MAC_SETTINGS:
             try: 
