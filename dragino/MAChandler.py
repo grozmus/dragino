@@ -136,6 +136,8 @@ class MAC_commands(object):
         self.gw_margin=0        # min is calculated
         self.gw_cnt=255         # max is calculated
 
+        self.saveCache()        # update the cache
+        
         self.logger.info("__init__ done")
 
     def setLastSNR(self,SNR):
