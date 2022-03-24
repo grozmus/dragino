@@ -15,7 +15,7 @@ class FHDR:
         self.fctrl = mac_payload[4]
         self.fcnt = mac_payload[5:7]
         self.fopts = mac_payload[7:7 + (self.fctrl & 0xf)]
-    
+
     def create(self, mtype, args):
         self.devaddr = [0x00, 0x00, 0x00, 0x00]
         
