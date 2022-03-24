@@ -5,6 +5,7 @@ This is a clone of https://github.com/computenodes/LoRaWAN.git which ended devel
 This has been heavily modified to :-
 
 * Support MAC V1.0.4 commands
+* Support for frequency plans like AU915-928-FSB2
 * Use threading timers to switch to listen on RX2 after RX1 delay if a valid message is not received in RX1.
 * Changed user configuration file to TOML format
 * Cache all TTN parameters
