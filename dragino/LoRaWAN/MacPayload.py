@@ -11,13 +11,20 @@ from .DataPayload import DataPayload
 class MacPayload:
 
     def read(self, mtype, mac_payload):
-        #print(f"MAC_payload {mac_payload}")
+
         if len(mac_payload) < 1:
             raise MalformedPacketException("Invalid mac payload")
 
         self.fhdr = FHDR()
         self.fhdr.read(mac_payload)
-        self.fport = mac_payload[self.fhdr.length()]
+
+
+        # join can fail because self.fhdr.length() is longer than mac_payload
+        try:
+            self.fport = mac_payload[self.fhdr.length()]
+        except:
+            self.fport=None
+
         self.frm_payload = None
         if mtype == MHDR.JOIN_REQUEST:
             self.frm_payload = JoinRequestPayload()
@@ -62,7 +69,8 @@ class MacPayload:
             mac_payload += self.fhdr.to_raw()
         if self.frm_payload != None:
             if self.fhdr.get_devaddr() != [0x00, 0x00, 0x00, 0x00]:
-                mac_payload += [self.fport]
+                if self.fport is not None: # BNN
+                    mac_payload += [self.fport]
             mac_payload += self.frm_payload.to_raw()
         return mac_payload
 
