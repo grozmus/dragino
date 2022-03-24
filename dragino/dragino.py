@@ -212,7 +212,7 @@ class Dragino(LoRa):
 
     def process_JOIN_ACCEPT(self,rawPayload):
         """
-        dwnlink is a join accept message
+        downlink is a join accept message
         """
         self.logger.debug("Trying to process JOIN_ACCEPT")
         try:
@@ -228,7 +228,7 @@ class Dragino(LoRa):
 
         except Exception as e:
             # if decoding failed it probably isn't a valid lorawan packet
-            self.logger.exception(f"Invalid JOIN_ACCEPT {e}")
+            self.logger.exception(f"Invalid JOIN_ACCEPT: {e}")
             return
                 
         # if we receive a valid message in RX1 we don't need
