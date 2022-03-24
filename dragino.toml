@@ -88,6 +88,9 @@
 
 # frequency plans
 # max of 16 channels supported in some regions.
+# read the LoRaWAN Regional Parameters Specification if you want to create
+# your own frequency plan - provided it works in a similar way
+# the US902-928 plan uses 71 uplink channels but only 8 downlink channels
 
 [EU_863_870_TTN]
 
