@@ -219,9 +219,9 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_JOIN_FREQUENCIES]))
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_JOIN_FREQS]))
 
-        freq=self.cache[CHANNEL_JOIN_FREQUENCIES][self.currentChannel]
+        freq=self.cache[CHANNEL_JOIN_FREQS][self.currentChannel]
 
         self.cache[MAX_DUTY_CYCLE]=self.getMaxDutyCycle(freq)
         
@@ -249,9 +249,9 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_TX_FREQUENCIES]))
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_TX_FREQS]))
 
-        freq=self.cache[CHANNEL_TX_FREQUENCIES][self.currentChannel]
+        freq=self.cache[CHANNEL_TX_FREQS][self.currentChannel]
         self.cache[MAX_DUTY_CYCLE]=self.getMaxDutyCycle(freq)
           
         sf,bw=self.config[self.frequency_plan][DATA_RATES][self.cache[DATA_RATE]]
@@ -271,7 +271,7 @@ class MAC_commands(object):
             freq = self.cache[RX1_FREQUENCY]
             self.logger.debug(f"RX1 frequency has been fixed to {freq}")
         else:
-            freq = self.cache[CHANNEL_RX1_FREQUENCIES][self.currentChannel]
+            freq = self.cache[CHANNEL_RX1_FREQS][self.currentChannel]
 
         sf, bw = self.config[self.frequency_plan][DATA_RATES][self.cache[RX1_DR]]
 
@@ -297,7 +297,7 @@ class MAC_commands(object):
         return the max duty cycle for a given frequency
         """
         if (self.currentChannel is None) or (freq is None):
-            freq=self.cache[CHANNEL_TX_FREQUENCIES][0] #
+            freq=self.cache[CHANNEL_TX_FREQS][0] #
             self.logger.error(f"Nothing has been transmitted. Using max duty cycle for {freq} instead")
                 
         DC_table=self.config[self.frequency_plan][DUTY_CYCLE_TABLE]
@@ -346,9 +346,9 @@ class MAC_commands(object):
 
             self.channelDRRange = [(0, 7)] * self.config[self.frequency_plan][MAX_CHANNELS]
             #self.channelFrequencies=self.config[self.frequency_plan][LORA_FREQS]
-            self.cache[CHANNEL_JOIN_FREQUENCIES]=self.config[self.frequency_plan][LORA_JOIN_FREQS]
-            self.cache[CHANNEL_TX_FREQUENCIES] = self.config[self.frequency_plan][LORA_TX_FREQS]
-            self.cache[CHANNEL_RX1_FREQUENCIES] = self.config[self.frequency_plan][LORA_RX1_FREQS]
+            self.cache[CHANNEL_JOIN_FREQS]=self.config[self.frequency_plan][LORA_JOIN_FREQS]
+            self.cache[CHANNEL_TX_FREQS] = self.config[self.frequency_plan][LORA_TX_FREQS]
+            self.cache[CHANNEL_RX1_FREQS] = self.config[self.frequency_plan][LORA_RX1_FREQS]
             self.newChannelIndex=0
             
             self.logger.info("Frequency Plan loaded ok")
@@ -413,9 +413,9 @@ class MAC_commands(object):
         self.logger.info("Setting default MAC values using user config values")
         
         self.cache[DATA_RATE]=self.config[TTN][DATA_RATE]
-        self.cache[CHANNEL_JOIN_FREQUENCIES] = self.config[self.frequency_plan][LORA_JOIN_FREQS]
-        self.cache[CHANNEL_TX_FREQUENCIES] = self.config[self.frequency_plan][LORA_TX_FREQS]
-        self.cache[CHANNEL_RX1_FREQUENCIES] = self.config[self.frequency_plan][LORA_RX1_FREQS]
+        self.cache[CHANNEL_JOIN_FREQS] = self.config[self.frequency_plan][LORA_JOIN_FREQS]
+        self.cache[CHANNEL_TX_FREQS] = self.config[self.frequency_plan][LORA_TX_FREQS]
+        self.cache[CHANNEL_RX1_FREQS] = self.config[self.frequency_plan][LORA_RX1_FREQS]
         self.cache[OUTPUT_POWER]=self.config[TTN][OUTPUT_POWER]
         self.cache[MAX_POWER]=self.config[TTN][MAX_POWER]
                 
@@ -751,7 +751,7 @@ class MAC_commands(object):
             
         freq=self._computeFreq(self.macCmds[self.macIndex+2:self.macIndex+4])
         
-        if freq in self.cache[CHANNEL_RX1_FREQUENCIES][self.currentChannel]:
+        if freq in self.cache[CHANNEL_RX1_FREQS][self.currentChannel]:
             reply=reply or 0x04
             
         if reply==0x07:
@@ -806,18 +806,15 @@ class MAC_commands(object):
         
         # TODO - check newFreq is possible first
         # needs to know region parameters
-        #minFreq=min(self.channelFrequencies)
-        #maxFreq=max(self.channelFrequencies)
-        minFreq=min(self.cache[CHANNEL_TX_FREQUENCIES])
-        maxFreq=max(self.cache[CHANNEL_TX_FREQUENCIES])
+        minFreq=min(self.cache[CHANNEL_TX_FREQS])
+        maxFreq=max(self.cache[CHANNEL_TX_FREQS])
 
         if not (minFreq<=newFreq<=maxFreq):
             self.logger.info(f"new freq {newFreq} not in range min {minFreq} - {maxFreq}")
             self.macReplies+=bytearray([MCMD.NEW_CHANNEL_REQ,0x02])
   
         else:
-            #self.channelFrequencies[ChIndex] = newFreq
-            self.cache[CHANNEL_TX_FREQUENCIES][chIndex]=newFreq
+            self.cache[CHANNEL_TX_FREQS][chIndex]=newFreq
             self.channelDRRange[chIndex] = (minDR,maxDR)
             
             self.logger.info(f"NewChannelReq chIndex {chIndex} freq {newFreq} maxDR {maxDR} minDR {minDR}")
