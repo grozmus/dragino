@@ -219,7 +219,7 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_JOIN_FREQS]))
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_JOIN_FREQS])-1)
 
         freq=self.cache[CHANNEL_JOIN_FREQS][self.currentChannel]
 
@@ -249,7 +249,7 @@ class MAC_commands(object):
         
         :return (freq,sf,bw)
         """
-        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_TX_FREQS]))
+        self.currentChannel=random.randint(0,len(self.cache[CHANNEL_TX_FREQS])-1)
 
         freq=self.cache[CHANNEL_TX_FREQS][self.currentChannel]
         self.cache[MAX_DUTY_CYCLE]=self.getMaxDutyCycle(freq)
