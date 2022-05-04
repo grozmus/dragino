@@ -90,6 +90,7 @@ See: https://www.lora-alliance.org/portals/0/specs/LoRaWAN%20Specification%201R0
     1. check your serial ports 'ls /dev/serial*'
     2. check the serial port is receiving GPS data with 'cat /dev/serialx' where x is your port number.
 4. Install the required packages `sudo apt install device-tree-compiler git python3-crypto python3-nmea2 python3-rpi.gpio python3-serial python3-spidev python3-configobj`
+	1. python3-crypto is no longer available for bullseye but pycrypto can be installed with pip and is the same thing.
 5. Download the git repo `git clone https://github.com/computenodes/LoRaWAN.git`
     1. make a copy of dragingo.ini.default `cp dragino.ini.default dragino.ini`
     2. make sure your dragino.ini is set to use the serial port from step 3
