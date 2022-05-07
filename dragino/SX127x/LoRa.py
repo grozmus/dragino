@@ -94,6 +94,12 @@ class LoRa(object):
         BOARD.add_events(self._dio0, self._dio1, self._dio2, self._dio3, self._dio4, self._dio5)
         # set mode to sleep and read all registers
         self.set_mode(MODE.SLEEP)
+
+        # check if mode was set hence SPI working
+        mode=self.get_mode()
+        if mode==0:
+            sys.exit(f"Unable to set modem mode. Have you enabled SPI as per the readme installation section?")
+
         self.backup_registers = self.get_all_registers()
         # more setup work:
         if do_calibration:
