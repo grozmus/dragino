@@ -214,13 +214,17 @@ class LoRa(object):
         :param mode: Set the mode. Use constants.MODE class
         :return:    New mode
         """
-        # the mode is backed up in self.mode
-        if mode == self.mode:
-            return mode
-        if self.verbose:
-            sys.stderr.write("Mode <- %s\n" % MODE.lookup[mode])
-        self.mode = mode
-        return self.spi.xfer([REG.LORA.OP_MODE | 0x80, mode])[1]
+        try:
+            # the mode is backed up in self.mode
+            if mode == self.mode:
+                return mode
+            if self.verbose:
+                sys.stderr.write("Mode <- %s\n" % MODE.lookup[mode])
+            self.mode = mode
+            return self.spi.xfer([REG.LORA.OP_MODE | 0x80, mode])[1]
+        except KeyError:
+            sys.stderr.write(f"set_mode KeyError error mode requested was {mode}\n")
+            return self.mode
 
     def write_payload(self, payload):
         """ Get FIFO ready for TX: Set FifoAddrPtr to FifoTxBaseAddr. The transceiver is put into STDBY mode.
